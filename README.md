@@ -65,7 +65,7 @@ Right-click the tray icon → **Run Scan Now** to immediately clean Recent files
 
 ## Configuration
 
-Settings are stored in `config.json` next to the executable:
+Settings are stored in `%AppData%\BlockFromRecent\config.json`:
 
 ```json
 {
@@ -95,7 +95,7 @@ You can edit this file manually if you prefer.
 ## How It Works
 
 1. A `FileSystemWatcher` monitors `%AppData%\Microsoft\Windows\Recent` for new `.lnk` files
-2. When a new shortcut appears, the app reads its target path via COM interop (`IShellLink`)
+2. When a new shortcut appears, the app parses the `.lnk` binary format (MS-SHLLINK) to read the target path
 3. The target path is checked against all exclusion rules (path prefix + glob matching)
 4. If it matches any rule, the `.lnk` file is silently deleted
 
