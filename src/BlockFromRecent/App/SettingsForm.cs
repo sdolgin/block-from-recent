@@ -209,7 +209,7 @@ public class SettingsForm : Form
             engine.UpdateRules(_config.Rules);
 
             string recentPath = RecentFileWatcher.RecentFolderPath;
-            int matchCount = 0;
+            int lnkMatchCount = 0;
             int total = 0;
 
             foreach (var lnkFile in Directory.GetFiles(recentPath, "*.lnk"))
@@ -220,7 +220,7 @@ public class SettingsForm : Form
                     string? target = ShortcutResolver.ResolveTarget(lnkFile);
                     if (target != null && engine.IsExcluded(target))
                     {
-                        matchCount++;
+                        lnkMatchCount++;
                         Log.Info($"  Match: {Path.GetFileName(lnkFile)} -> {target}");
                     }
                 }
@@ -230,9 +230,17 @@ public class SettingsForm : Form
                 }
             }
 
-            Log.Info($"TestRules complete: {matchCount}/{total} matched");
-            SetStatus($"Test: {matchCount} of {total} recent files would be removed.",
-                matchCount > 0 ? Color.DarkOrange : Color.DarkGreen);
+            // Also count jump list matches
+            int jumpListCount = JumpListCleaner.CountMatches(engine);
+
+            Log.Info($"TestRules complete: {lnkMatchCount}/{total} .lnk matched, {jumpListCount} jump list entries matched");
+            int totalMatches = lnkMatchCount + jumpListCount;
+            string msg = $"Test: {lnkMatchCount} of {total} .lnk files";
+            if (jumpListCount > 0)
+                msg += $" + {jumpListCount} jump list entries";
+            msg += " would be removed.";
+
+            SetStatus(msg, totalMatches > 0 ? Color.DarkOrange : Color.DarkGreen);
         }
         catch (Exception ex)
         {

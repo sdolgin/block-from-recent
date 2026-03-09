@@ -18,47 +18,48 @@ public static class ShortcutResolver
         try
         {
             byte[] data = File.ReadAllBytes(lnkPath);
-            if (data.Length < LNK_HEADER_SIZE)
-            {
-                Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} too small ({data.Length} bytes)");
-                return null;
-            }
-
-            // Validate header size
-            uint headerSize = BitConverter.ToUInt32(data, 0);
-            if (headerSize != LNK_HEADER_SIZE)
-            {
-                Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} invalid header (0x{headerSize:X8})");
-                return null;
-            }
-
-            uint linkFlags = BitConverter.ToUInt32(data, 0x14);
-            int offset = (int)LNK_HEADER_SIZE;
-
-            // Skip LinkTargetIDList if present
-            if ((linkFlags & HAS_LINK_TARGET_ID_LIST) != 0)
-            {
-                if (offset + 2 > data.Length) return null;
-                ushort idListSize = BitConverter.ToUInt16(data, offset);
-                offset += 2 + idListSize;
-            }
-
-            // Parse LinkInfo if present
-            if ((linkFlags & HAS_LINK_INFO) != 0)
-            {
-                string? target = ParseLinkInfo(data, offset);
-                Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} -> {target ?? "(null)"}");
-                return target;
-            }
-
-            Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} has no LinkInfo (flags=0x{linkFlags:X8})");
-            return null;
+            string? target = ResolveTargetFromBytes(data);
+            Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} -> {target ?? "(null)"}");
+            return target;
         }
         catch (Exception ex)
         {
             Log.Warn($"ResolveTarget failed for {Path.GetFileName(lnkPath)}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Resolves the target path from raw .lnk binary data.
+    /// Used by both file-based resolution and jump list stream parsing.
+    /// </summary>
+    public static string? ResolveTargetFromBytes(byte[] data)
+    {
+        if (data.Length < LNK_HEADER_SIZE)
+            return null;
+
+        uint headerSize = BitConverter.ToUInt32(data, 0);
+        if (headerSize != LNK_HEADER_SIZE)
+            return null;
+
+        uint linkFlags = BitConverter.ToUInt32(data, 0x14);
+        int offset = (int)LNK_HEADER_SIZE;
+
+        // Skip LinkTargetIDList if present
+        if ((linkFlags & HAS_LINK_TARGET_ID_LIST) != 0)
+        {
+            if (offset + 2 > data.Length) return null;
+            ushort idListSize = BitConverter.ToUInt16(data, offset);
+            offset += 2 + idListSize;
+        }
+
+        // Parse LinkInfo if present
+        if ((linkFlags & HAS_LINK_INFO) != 0)
+        {
+            return ParseLinkInfo(data, offset);
+        }
+
+        return null;
     }
 
     private static string? ParseLinkInfo(byte[] data, int offset)

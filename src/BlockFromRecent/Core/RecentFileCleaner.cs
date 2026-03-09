@@ -40,6 +40,7 @@ public class RecentFileCleaner : IDisposable
 
     /// <summary>
     /// Scans all existing .lnk files in the Recent folder and removes matches.
+    /// Also cleans matching entries from AutomaticDestinations jump lists.
     /// Returns the number of files removed.
     /// </summary>
     public int ScanExisting()
@@ -58,7 +59,14 @@ public class RecentFileCleaner : IDisposable
                     removed++;
             }
 
-            Log.Info($"ScanExisting complete: removed {removed} file(s)");
+            // Also clean AutomaticDestinations jump list entries
+            int jumpListRemoved = JumpListCleaner.CleanAll(_engine);
+            removed += jumpListRemoved;
+
+            if (removed > 0)
+                JumpListCleaner.NotifyShellRecentChanged();
+
+            Log.Info($"ScanExisting complete: removed {removed} item(s) (jump list: {jumpListRemoved})");
         }
         catch (Exception ex)
         {
@@ -70,7 +78,18 @@ public class RecentFileCleaner : IDisposable
 
     private void HandleNewRecentFile(string lnkPath)
     {
-        RetryWithDelay(() => TryRemoveIfExcluded(lnkPath), maxRetries: 3, delayMs: 200);
+        RetryWithDelay(() =>
+        {
+            bool removed = TryRemoveIfExcluded(lnkPath);
+            if (removed)
+            {
+                // Also clean the matching entry from jump list databases
+                // so it disappears from Explorer's Recent view
+                try { JumpListCleaner.CleanAll(_engine); } catch { }
+                JumpListCleaner.NotifyShellRecentChanged();
+            }
+            return removed;
+        }, maxRetries: 3, delayMs: 200);
     }
 
     private bool TryRemoveIfExcluded(string lnkPath)
