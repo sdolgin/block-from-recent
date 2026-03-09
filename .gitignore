@@ -44,5 +44,11 @@ $RECYCLE.BIN/
 # Publish output
 publish/
 
+# Installer output
+installer/output/
+
 # Config file (user-specific)
 config.json
+
+# Log files
+*.log

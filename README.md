@@ -16,12 +16,20 @@ A lightweight Windows system tray utility that automatically removes unwanted fi
 
 ## Installation
 
-### Option 1: Download Release
+### Option 1: Installer (Recommended)
+1. Download `BlockFromRecent-Setup-x.x.x.exe` from [Releases](../../releases)
+2. Run the installer — choose install location and options
+3. Optionally check **Start with Windows** during setup
+4. The app launches automatically after install
+
+To uninstall: use **Add or Remove Programs** in Windows Settings, or run the uninstaller from the Start Menu.
+
+### Option 2: Portable EXE
 1. Download `BlockFromRecent.exe` from [Releases](../../releases)
 2. Place it in a permanent folder (e.g., `C:\Tools\BlockFromRecent\`)
 3. Run it — a shield icon appears in the system tray
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 ```bash
 # Clone the repository
 git clone https://github.com/your-username/block-from-recent.git
@@ -30,8 +38,11 @@ cd block-from-recent
 # Build (framework-dependent — requires .NET 8 runtime)
 dotnet publish src/BlockFromRecent/BlockFromRecent.csproj -c Release
 
-# Or build self-contained single file
+# Or build self-contained single file (no .NET runtime required)
 dotnet publish src/BlockFromRecent/BlockFromRecent.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+
+# Build the installer (requires Inno Setup 6)
+iscc src/BlockFromRecent/installer.iss
 ```
 
 ## Usage
