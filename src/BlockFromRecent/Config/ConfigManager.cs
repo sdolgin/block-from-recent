@@ -3,16 +3,16 @@ using System.Text.Json.Serialization;
 
 namespace BlockFromRecent.Config;
 
+[JsonSourceGenerationOptions(
+    WriteIndented = true,
+    UseStringEnumConverter = true)]
+[JsonSerializable(typeof(AppConfig))]
+internal partial class AppConfigJsonContext : JsonSerializerContext { }
+
 public static class ConfigManager
 {
     private static readonly string ConfigPath = Path.Combine(
         AppContext.BaseDirectory, "config.json");
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
 
     public static AppConfig Load()
     {
@@ -26,7 +26,7 @@ public static class ConfigManager
         try
         {
             string json = File.ReadAllText(ConfigPath);
-            return JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? new AppConfig();
+            return JsonSerializer.Deserialize(json, AppConfigJsonContext.Default.AppConfig) ?? new AppConfig();
         }
         catch
         {
@@ -36,7 +36,7 @@ public static class ConfigManager
 
     public static void Save(AppConfig config)
     {
-        string json = JsonSerializer.Serialize(config, JsonOptions);
+        string json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
         File.WriteAllText(ConfigPath, json);
     }
 }

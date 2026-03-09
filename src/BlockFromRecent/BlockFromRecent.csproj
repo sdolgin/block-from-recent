@@ -12,6 +12,11 @@
     <Authors>Block From Recent Contributors</Authors>
     <Description>Automatically remove unwanted files from Windows Recent Files based on exclusion rules.</Description>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
   </PropertyGroup>
 
   <ItemGroup>
