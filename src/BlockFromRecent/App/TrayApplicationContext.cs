@@ -27,12 +27,12 @@ public class TrayApplicationContext : ApplicationContext
 
         _trayIcon.DoubleClick += (_, _) => ShowSettings();
 
+        Log.Info("Tray icon created, starting cleaner");
         _cleaner.Start();
     }
 
     private static Icon LoadAppIcon()
     {
-        // Try to load custom icon, fall back to system default
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Resources", "app.ico");
         if (File.Exists(iconPath))
         {
@@ -47,21 +47,17 @@ public class TrayApplicationContext : ApplicationContext
     {
         var menu = new ContextMenuStrip();
 
-        var settingsItem = new ToolStripMenuItem("⚙️ Settings", null, (_, _) => ShowSettings());
+        var settingsItem = new ToolStripMenuItem("Settings", null, (_, _) => ShowSettings());
         settingsItem.Font = new Font(settingsItem.Font, FontStyle.Bold);
         menu.Items.Add(settingsItem);
 
-        menu.Items.Add("🔄 Run Scan Now", null, (_, _) => RunScanNow());
+        menu.Items.Add("Run Scan Now", null, (_, _) => RunScanNow());
         menu.Items.Add(new ToolStripSeparator());
 
-        var rulesCount = new ToolStripMenuItem($"Rules: {_config.Rules.Count}")
-        {
-            Enabled = false
-        };
-        menu.Items.Add(rulesCount);
+        menu.Items.Add(new ToolStripMenuItem($"Rules: {_config.Rules.Count}") { Enabled = false });
 
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("❌ Exit", null, (_, _) => ExitApp());
+        menu.Items.Add("Exit", null, (_, _) => ExitApp());
 
         return menu;
     }
@@ -74,45 +70,72 @@ public class TrayApplicationContext : ApplicationContext
 
     private void ShowSettings()
     {
-        if (_settingsForm != null && !_settingsForm.IsDisposed)
+        try
         {
-            _settingsForm.Activate();
-            return;
-        }
+            if (_settingsForm != null && !_settingsForm.IsDisposed)
+            {
+                _settingsForm.Activate();
+                return;
+            }
 
-        _settingsForm = new SettingsForm(_config);
-        _settingsForm.ConfigSaved += OnConfigSaved;
-        _settingsForm.Show();
+            _settingsForm = new SettingsForm(_config);
+            _settingsForm.ConfigSaved += OnConfigSaved;
+            _settingsForm.Show();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to show settings", ex);
+        }
     }
 
     private void OnConfigSaved(AppConfig newConfig)
     {
-        _config = newConfig;
-        _cleaner.UpdateConfig(newConfig);
-        AutoStartManager.SetEnabled(newConfig.AutoStart);
-        ConfigManager.Save(newConfig);
-        RefreshContextMenu();
+        try
+        {
+            _config = newConfig;
+            _cleaner.UpdateConfig(newConfig);
+            AutoStartManager.SetEnabled(newConfig.AutoStart);
+            ConfigManager.Save(newConfig);
+            RefreshContextMenu();
+            Log.Info($"Config saved: {newConfig.Rules.Count} rules, AutoStart={newConfig.AutoStart}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to save config", ex);
+        }
     }
 
     private void RunScanNow()
     {
-        int removed = _cleaner.ScanExisting();
-        _trayIcon.ShowBalloonTip(
-            2000,
-            "Block From Recent",
-            removed > 0
-                ? $"Scan complete. Removed {removed} file(s)."
-                : "Scan complete. No matching files found.",
-            removed > 0 ? ToolTipIcon.Info : ToolTipIcon.None);
+        try
+        {
+            Log.Info("Manual scan triggered");
+            int removed = _cleaner.ScanExisting();
+            Log.Info($"Manual scan complete: removed {removed} file(s)");
+            _trayIcon.ShowBalloonTip(
+                2000,
+                "Block From Recent",
+                removed > 0
+                    ? $"Scan complete. Removed {removed} file(s)."
+                    : "Scan complete. No matching files found.",
+                removed > 0 ? ToolTipIcon.Info : ToolTipIcon.None);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("RunScanNow failed", ex);
+            _trayIcon.ShowBalloonTip(2000, "Block From Recent",
+                $"Scan error: {ex.Message}", ToolTipIcon.Error);
+        }
     }
 
     private void OnFileRemoved(string lnkPath, string targetPath)
     {
-        // Optionally show notification (keep it non-intrusive)
+        Log.Info($"Removed: {Path.GetFileName(lnkPath)} -> {targetPath}");
     }
 
     private void ExitApp()
     {
+        Log.Info("User requested exit");
         _cleaner.Stop();
         _cleaner.Dispose();
         _trayIcon.Visible = false;

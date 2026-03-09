@@ -51,15 +51,20 @@ public class RecentFileCleaner : IDisposable
 
         try
         {
-            foreach (var lnkFile in Directory.GetFiles(recentPath, "*.lnk"))
+            var files = Directory.GetFiles(recentPath, "*.lnk");
+            Log.Info($"ScanExisting: found {files.Length} .lnk files in {recentPath}");
+
+            foreach (var lnkFile in files)
             {
                 if (TryRemoveIfExcluded(lnkFile))
                     removed++;
             }
+
+            Log.Info($"ScanExisting complete: removed {removed} file(s)");
         }
-        catch
+        catch (Exception ex)
         {
-            // Folder access error — ignore
+            Log.Error("ScanExisting failed", ex);
         }
 
         return removed;
@@ -98,9 +103,9 @@ public class RecentFileCleaner : IDisposable
                 return true;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // File in use or access denied — will retry if called from HandleNewRecentFile
+            Log.Error($"TryRemoveIfExcluded failed for {Path.GetFileName(lnkPath)}", ex);
         }
 
         return false;

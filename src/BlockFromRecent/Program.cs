@@ -1,5 +1,6 @@
 using BlockFromRecent.App;
 using BlockFromRecent.Config;
+using BlockFromRecent.Core;
 
 namespace BlockFromRecent;
 
@@ -10,10 +11,28 @@ static class Program
     [STAThread]
     static void Main()
     {
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (_, e) =>
+        {
+            Log.Error("Unhandled UI thread exception", e.Exception);
+            MessageBox.Show(
+                $"An error occurred:\n{e.Exception.Message}\n\nSee block-from-recent.log for details.",
+                "Block From Recent — Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+                Log.Error("Unhandled domain exception", ex);
+        };
+
+        Log.TrimIfNeeded();
+        Log.Info("Application starting");
+
         using var mutex = new Mutex(true, MutexName, out bool createdNew);
         if (!createdNew)
         {
-            // Another instance is already running
+            Log.Info("Another instance is already running — exiting");
             MessageBox.Show(
                 "Block From Recent is already running.\nCheck the system tray.",
                 "Block From Recent",
@@ -25,6 +44,9 @@ static class Program
         ApplicationConfiguration.Initialize();
 
         var config = ConfigManager.Load();
+        Log.Info($"Config loaded: {config.Rules.Count} rules, AutoStart={config.AutoStart}, ScanOnStartup={config.ScanOnStartup}");
+
         Application.Run(new TrayApplicationContext(config));
+        Log.Info("Application exiting");
     }
 }
