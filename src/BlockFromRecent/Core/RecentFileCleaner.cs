@@ -6,6 +6,7 @@ public class RecentFileCleaner : IDisposable
 {
     private readonly RecentFileWatcher _watcher;
     private readonly ExclusionEngine _engine;
+    private readonly SynchronizationContext? _syncContext;
     private AppConfig _config;
 
     public event Action<string, string>? OnFileRemoved; // (lnkPath, targetPath)
@@ -13,6 +14,7 @@ public class RecentFileCleaner : IDisposable
     public RecentFileCleaner(AppConfig config)
     {
         _config = config;
+        _syncContext = SynchronizationContext.Current;
         _engine = new ExclusionEngine();
         _engine.UpdateRules(config.Rules);
         _watcher = new RecentFileWatcher();
@@ -65,8 +67,17 @@ public class RecentFileCleaner : IDisposable
 
     private void HandleNewRecentFile(string lnkPath)
     {
-        // Small delay to let Windows finish writing the shortcut
-        RetryWithDelay(() => TryRemoveIfExcluded(lnkPath), maxRetries: 3, delayMs: 200);
+        // COM interop needs STA thread — marshal to UI thread if available
+        if (SynchronizationContext.Current == null && _syncContext != null)
+        {
+            _syncContext.Post(_ =>
+                RetryWithDelay(() => TryRemoveIfExcluded(lnkPath), maxRetries: 3, delayMs: 200),
+                null);
+        }
+        else
+        {
+            RetryWithDelay(() => TryRemoveIfExcluded(lnkPath), maxRetries: 3, delayMs: 200);
+        }
     }
 
     private bool TryRemoveIfExcluded(string lnkPath)

@@ -24,103 +24,109 @@ public class SettingsForm : Form
     public SettingsForm(AppConfig config)
     {
         _config = CloneConfig(config);
-        InitializeFormProperties();
 
-        // Rules list
+        AutoScaleMode = AutoScaleMode.Dpi;
+        Text = "Block From Recent — Settings";
+        MinimizeBox = false;
+        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        StartPosition = FormStartPosition.CenterScreen;
+        Icon = SystemIcons.Shield;
+
+        // Use TableLayoutPanel for DPI-aware layout
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(10),
+            ColumnCount = 2,
+            RowCount = 5,
+            AutoSize = true
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // row 0: label
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 220)); // row 1: listbox + buttons
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // row 2: checkboxes
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // row 3: status
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // row 4: save
+
+        // Row 0: Label
         var rulesLabel = new Label
         {
             Text = "Exclusion Rules:",
-            Location = new Point(12, 12),
             AutoSize = true,
-            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold)
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
+            Padding = new Padding(0, 0, 0, 4)
         };
+        layout.Controls.Add(rulesLabel, 0, 0);
+        layout.SetColumnSpan(rulesLabel, 2);
 
+        // Row 1 left: ListBox
         _rulesListBox = new ListBox
         {
-            Location = new Point(12, 35),
-            Size = new Size(430, 200),
-            Font = new Font("Consolas", 9.5f)
+            Dock = DockStyle.Fill,
+            Font = new Font("Consolas", 9.5f),
+            IntegralHeight = false
         };
+        layout.Controls.Add(_rulesListBox, 0, 1);
 
-        // Buttons panel (right side)
-        _addPrefixBtn = new Button
+        // Row 1 right: Button panel
+        var btnPanel = new FlowLayoutPanel
         {
-            Text = "+ Path Prefix",
-            Location = new Point(455, 35),
-            Size = new Size(115, 30)
-        };
-
-        _addGlobBtn = new Button
-        {
-            Text = "+ Glob Pattern",
-            Location = new Point(455, 70),
-            Size = new Size(115, 30)
-        };
-
-        _editBtn = new Button
-        {
-            Text = "Edit",
-            Location = new Point(455, 110),
-            Size = new Size(115, 30)
-        };
-
-        _removeBtn = new Button
-        {
-            Text = "Remove",
-            Location = new Point(455, 145),
-            Size = new Size(115, 30)
-        };
-
-        _testBtn = new Button
-        {
-            Text = "🔍 Test Rules",
-            Location = new Point(455, 195),
-            Size = new Size(115, 30)
-        };
-
-        // Options
-        _autoStartCheckBox = new CheckBox
-        {
-            Text = "Start with Windows",
-            Location = new Point(12, 250),
+            FlowDirection = FlowDirection.TopDown,
             AutoSize = true,
-            Checked = _config.AutoStart
+            WrapContents = false,
+            Padding = new Padding(4, 0, 0, 0)
         };
 
-        _scanOnStartupCheckBox = new CheckBox
+        _addPrefixBtn = new Button { Text = "+ Path", AutoSize = true, MinimumSize = new Size(120, 32) };
+        _addGlobBtn = new Button { Text = "+ Glob", AutoSize = true, MinimumSize = new Size(120, 32) };
+        _editBtn = new Button { Text = "Edit", AutoSize = true, MinimumSize = new Size(120, 32) };
+        _removeBtn = new Button { Text = "Remove", AutoSize = true, MinimumSize = new Size(120, 32) };
+        _testBtn = new Button { Text = "Test Rules", AutoSize = true, MinimumSize = new Size(120, 32), Margin = new Padding(3, 12, 3, 3) };
+
+        btnPanel.Controls.AddRange(new Control[] { _addPrefixBtn, _addGlobBtn, _editBtn, _removeBtn, _testBtn });
+        layout.Controls.Add(btnPanel, 1, 1);
+
+        // Row 2: Checkboxes
+        var checkPanel = new FlowLayoutPanel
         {
-            Text = "Scan existing files on startup",
-            Location = new Point(12, 275),
+            FlowDirection = FlowDirection.TopDown,
             AutoSize = true,
-            Checked = _config.ScanOnStartup
+            WrapContents = false,
+            Padding = new Padding(0, 6, 0, 0)
         };
+        _autoStartCheckBox = new CheckBox { Text = "Start with Windows", AutoSize = true, Checked = _config.AutoStart };
+        _scanOnStartupCheckBox = new CheckBox { Text = "Scan existing files on startup", AutoSize = true, Checked = _config.ScanOnStartup };
+        checkPanel.Controls.AddRange(new Control[] { _autoStartCheckBox, _scanOnStartupCheckBox });
+        layout.Controls.Add(checkPanel, 0, 2);
+        layout.SetColumnSpan(checkPanel, 2);
 
-        // Status label
+        // Row 3: Status label
         _statusLabel = new Label
         {
             Text = "",
-            Location = new Point(12, 310),
-            Size = new Size(430, 20),
-            ForeColor = Color.DarkGreen
+            AutoSize = true,
+            ForeColor = Color.DarkGreen,
+            Padding = new Padding(0, 4, 0, 4)
         };
+        layout.Controls.Add(_statusLabel, 0, 3);
 
-        // Save button
+        // Row 4: Save button
         _saveBtn = new Button
         {
-            Text = "💾 Save",
-            Location = new Point(455, 305),
-            Size = new Size(115, 35),
-            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold)
+            Text = "Save",
+            AutoSize = true,
+            MinimumSize = new Size(120, 36),
+            Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
+            Anchor = AnchorStyles.Right
         };
+        layout.Controls.Add(_saveBtn, 1, 3);
 
-        // Add controls
-        Controls.AddRange(new Control[]
-        {
-            rulesLabel, _rulesListBox,
-            _addPrefixBtn, _addGlobBtn, _editBtn, _removeBtn, _testBtn,
-            _autoStartCheckBox, _scanOnStartupCheckBox,
-            _statusLabel, _saveBtn
-        });
+        Controls.Add(layout);
+
+        // Set form size after layout is built
+        ClientSize = new Size(580, 400);
 
         // Wire events
         _addPrefixBtn.Click += (_, _) => AddRule(RuleType.PathPrefix);
@@ -131,17 +137,6 @@ public class SettingsForm : Form
         _saveBtn.Click += (_, _) => SaveConfig();
 
         RefreshRulesList();
-    }
-
-    private void InitializeFormProperties()
-    {
-        Text = "Block From Recent — Settings";
-        Size = new Size(595, 385);
-        MinimumSize = new Size(595, 385);
-        MaximizeBox = false;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        StartPosition = FormStartPosition.CenterScreen;
-        Icon = SystemIcons.Shield;
     }
 
     private void RefreshRulesList()
@@ -197,27 +192,38 @@ public class SettingsForm : Form
 
     private void TestRules()
     {
-        var engine = new ExclusionEngine();
-        engine.UpdateRules(_config.Rules);
-
-        string recentPath = RecentFileWatcher.RecentFolderPath;
-        int matchCount = 0;
-        int total = 0;
-
         try
         {
+            var engine = new ExclusionEngine();
+            engine.UpdateRules(_config.Rules);
+
+            string recentPath = RecentFileWatcher.RecentFolderPath;
+            int matchCount = 0;
+            int total = 0;
+
             foreach (var lnkFile in Directory.GetFiles(recentPath, "*.lnk"))
             {
                 total++;
-                string? target = ShortcutResolver.ResolveTarget(lnkFile);
-                if (target != null && engine.IsExcluded(target))
-                    matchCount++;
+                try
+                {
+                    string? target = ShortcutResolver.ResolveTarget(lnkFile);
+                    if (target != null && engine.IsExcluded(target))
+                        matchCount++;
+                }
+                catch
+                {
+                    // Skip individual files that can't be resolved
+                }
             }
-        }
-        catch { }
 
-        _statusLabel.Text = $"Test: {matchCount} of {total} recent files would be removed.";
-        _statusLabel.ForeColor = matchCount > 0 ? Color.DarkOrange : Color.DarkGreen;
+            _statusLabel.Text = $"Test: {matchCount} of {total} recent files would be removed.";
+            _statusLabel.ForeColor = matchCount > 0 ? Color.DarkOrange : Color.DarkGreen;
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Test error: {ex.Message}";
+            _statusLabel.ForeColor = Color.DarkRed;
+        }
     }
 
     private void SaveConfig()
@@ -235,40 +241,55 @@ public class SettingsForm : Form
         using var form = new Form
         {
             Text = title,
-            Size = new Size(500, 170),
+            AutoScaleMode = AutoScaleMode.Dpi,
             FormBorderStyle = FormBorderStyle.FixedDialog,
             StartPosition = FormStartPosition.CenterParent,
             MaximizeBox = false,
-            MinimizeBox = false
+            MinimizeBox = false,
+            ClientSize = new Size(500, 120)
         };
 
-        var label = new Label { Text = prompt, Location = new Point(12, 12), AutoSize = true };
-        var textBox = new TextBox
+        var layout = new TableLayoutPanel
         {
-            Text = defaultValue,
-            Location = new Point(12, 40),
-            Size = new Size(460, 25)
+            Dock = DockStyle.Fill,
+            Padding = new Padding(12),
+            RowCount = 3,
+            ColumnCount = 2,
+            AutoSize = true
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var label = new Label { Text = prompt, AutoSize = true, Padding = new Padding(0, 0, 0, 6) };
+        layout.Controls.Add(label, 0, 0);
+        layout.SetColumnSpan(label, 2);
+
+        var textBox = new TextBox { Text = defaultValue, Dock = DockStyle.Fill };
+        layout.Controls.Add(textBox, 0, 1);
+        layout.SetColumnSpan(textBox, 2);
+
+        var btnPanel = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.RightToLeft,
+            AutoSize = true,
+            WrapContents = false,
+            Anchor = AnchorStyles.Right,
+            Padding = new Padding(0, 8, 0, 0)
         };
 
-        var okBtn = new Button
-        {
-            Text = "OK",
-            DialogResult = DialogResult.OK,
-            Location = new Point(316, 80),
-            Size = new Size(75, 30)
-        };
+        var cancelBtn = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(80, 30) };
+        var okBtn = new Button { Text = "OK", DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(80, 30) };
+        btnPanel.Controls.AddRange(new Control[] { cancelBtn, okBtn });
 
-        var cancelBtn = new Button
-        {
-            Text = "Cancel",
-            DialogResult = DialogResult.Cancel,
-            Location = new Point(397, 80),
-            Size = new Size(75, 30)
-        };
+        layout.Controls.Add(btnPanel, 0, 2);
+        layout.SetColumnSpan(btnPanel, 2);
 
         form.AcceptButton = okBtn;
         form.CancelButton = cancelBtn;
-        form.Controls.AddRange(new Control[] { label, textBox, okBtn, cancelBtn });
+        form.Controls.Add(layout);
 
         return form.ShowDialog() == DialogResult.OK ? textBox.Text : null;
     }
