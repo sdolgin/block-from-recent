@@ -78,17 +78,28 @@ public class RecentFileCleaner : IDisposable
         try
         {
             if (!File.Exists(lnkPath))
+            {
+                Log.Debug($"TryRemove: {Path.GetFileName(lnkPath)} no longer exists, skipping");
                 return false;
+            }
 
             string? target = ShortcutResolver.ResolveTarget(lnkPath);
             if (target == null)
+            {
+                Log.Debug($"TryRemove: {Path.GetFileName(lnkPath)} target could not be resolved");
                 return false;
+            }
 
             if (_engine.IsExcluded(target))
             {
                 File.Delete(lnkPath);
+                Log.Info($"Removed: {Path.GetFileName(lnkPath)} -> {target}");
                 OnFileRemoved?.Invoke(lnkPath, target);
                 return true;
+            }
+            else
+            {
+                Log.Debug($"TryRemove: {Path.GetFileName(lnkPath)} not excluded (target: {target})");
             }
         }
         catch (Exception ex)

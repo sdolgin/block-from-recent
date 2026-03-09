@@ -21,6 +21,7 @@ public class ExclusionEngine
             return false;
 
         string normalized = NormalizePath(targetPath);
+        Log.Debug($"ExclusionEngine: checking \"{normalized}\" against {_rules.Count} rule(s)");
 
         foreach (var rule in _rules)
         {
@@ -31,17 +32,22 @@ public class ExclusionEngine
             {
                 case RuleType.PathPrefix:
                     string normalizedPrefix = NormalizePath(rule.Pattern);
-                    if (normalized.StartsWith(normalizedPrefix, StringComparison.OrdinalIgnoreCase))
+                    bool prefixMatch = normalized.StartsWith(normalizedPrefix, StringComparison.OrdinalIgnoreCase);
+                    Log.Debug($"  PathPrefix \"{normalizedPrefix}\" -> {(prefixMatch ? "MATCH" : "no match")}");
+                    if (prefixMatch)
                         return true;
                     break;
 
                 case RuleType.GlobPattern:
-                    if (MatchesGlob(normalized, rule.Pattern))
+                    bool globMatch = MatchesGlob(normalized, rule.Pattern);
+                    Log.Debug($"  GlobPattern \"{rule.Pattern}\" -> {(globMatch ? "MATCH" : "no match")}");
+                    if (globMatch)
                         return true;
                     break;
             }
         }
 
+        Log.Debug($"  Result: NOT excluded");
         return false;
     }
 

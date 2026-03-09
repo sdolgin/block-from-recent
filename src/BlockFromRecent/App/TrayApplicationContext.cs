@@ -14,6 +14,7 @@ public class TrayApplicationContext : ApplicationContext
     public TrayApplicationContext(AppConfig config)
     {
         _config = config;
+        Log.Verbose = config.VerboseLogging;
         _cleaner = new RecentFileCleaner(config);
         _cleaner.OnFileRemoved += OnFileRemoved;
 
@@ -52,9 +53,12 @@ public class TrayApplicationContext : ApplicationContext
         menu.Items.Add(settingsItem);
 
         menu.Items.Add("Run Scan Now", null, (_, _) => RunScanNow());
+        menu.Items.Add("Open Log File", null, (_, _) => OpenLogFile());
         menu.Items.Add(new ToolStripSeparator());
 
         menu.Items.Add(new ToolStripMenuItem($"Rules: {_config.Rules.Count}") { Enabled = false });
+        var loggingItem = new ToolStripMenuItem($"Verbose: {(_config.VerboseLogging ? "ON" : "OFF")}") { Enabled = false };
+        menu.Items.Add(loggingItem);
 
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => ExitApp());
@@ -93,11 +97,12 @@ public class TrayApplicationContext : ApplicationContext
         try
         {
             _config = newConfig;
+            Log.Verbose = newConfig.VerboseLogging;
             _cleaner.UpdateConfig(newConfig);
             AutoStartManager.SetEnabled(newConfig.AutoStart);
             ConfigManager.Save(newConfig);
             RefreshContextMenu();
-            Log.Info($"Config saved: {newConfig.Rules.Count} rules, AutoStart={newConfig.AutoStart}");
+            Log.Info($"Config saved: {newConfig.Rules.Count} rules, AutoStart={newConfig.AutoStart}, VerboseLogging={newConfig.VerboseLogging}");
         }
         catch (Exception ex)
         {
@@ -131,6 +136,31 @@ public class TrayApplicationContext : ApplicationContext
     private void OnFileRemoved(string lnkPath, string targetPath)
     {
         Log.Info($"Removed: {Path.GetFileName(lnkPath)} -> {targetPath}");
+    }
+
+    private static void OpenLogFile()
+    {
+        try
+        {
+            string logPath = AppPaths.LogFile;
+            if (File.Exists(logPath))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = logPath,
+                    UseShellExecute = true
+                });
+            }
+            else
+            {
+                MessageBox.Show("Log file not found yet.\nIt will be created when the app logs its first entry.",
+                    "Block From Recent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to open log file", ex);
+        }
     }
 
     private void ExitApp()

@@ -5,10 +5,26 @@ namespace BlockFromRecent.Core;
 public static class Log
 {
     private static readonly object Lock = new();
+    private static bool _verbose;
+
+    public static bool Verbose
+    {
+        get => _verbose;
+        set => _verbose = value;
+    }
 
     public static void Info(string message) => Write("INFO", message);
     public static void Warn(string message) => Write("WARN", message);
     public static void Error(string message) => Write("ERROR", message);
+
+    /// <summary>
+    /// Debug-level logging — only written when VerboseLogging is enabled.
+    /// </summary>
+    public static void Debug(string message)
+    {
+        if (_verbose)
+            Write("DEBUG", message);
+    }
 
     public static void Error(string message, Exception ex)
     {

@@ -19,12 +19,18 @@ public static class ShortcutResolver
         {
             byte[] data = File.ReadAllBytes(lnkPath);
             if (data.Length < LNK_HEADER_SIZE)
+            {
+                Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} too small ({data.Length} bytes)");
                 return null;
+            }
 
             // Validate header size
             uint headerSize = BitConverter.ToUInt32(data, 0);
             if (headerSize != LNK_HEADER_SIZE)
+            {
+                Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} invalid header (0x{headerSize:X8})");
                 return null;
+            }
 
             uint linkFlags = BitConverter.ToUInt32(data, 0x14);
             int offset = (int)LNK_HEADER_SIZE;
@@ -40,9 +46,12 @@ public static class ShortcutResolver
             // Parse LinkInfo if present
             if ((linkFlags & HAS_LINK_INFO) != 0)
             {
-                return ParseLinkInfo(data, offset);
+                string? target = ParseLinkInfo(data, offset);
+                Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} -> {target ?? "(null)"}");
+                return target;
             }
 
+            Log.Debug($"ShortcutResolver: {Path.GetFileName(lnkPath)} has no LinkInfo (flags=0x{linkFlags:X8})");
             return null;
         }
         catch (Exception ex)
@@ -134,11 +143,23 @@ public static class ShortcutResolver
 
     private static string? TryReadPathSuffix(byte[] data, int offset, uint headerSize, bool hasLocalBasePath)
     {
-        // CommonPathSuffix is at offset 0x18 in LinkInfo (ANSI)
-        int suffixFieldOffset = hasLocalBasePath ? 0x18 : 0x14;
-        if (offset + suffixFieldOffset + 4 > data.Length) return null;
+        // CommonPathSuffixOffset is always at offset 0x18 in LinkInfo
+        if (offset + 0x18 + 4 > data.Length) return null;
 
-        uint suffixOffset = BitConverter.ToUInt32(data, offset + suffixFieldOffset);
+        // Try Unicode suffix first if header is large enough
+        if (headerSize >= 0x24 && offset + 0x20 + 4 <= data.Length)
+        {
+            uint unicodeSuffixOffset = BitConverter.ToUInt32(data, offset + 0x20);
+            if (unicodeSuffixOffset > 0 && offset + unicodeSuffixOffset < data.Length)
+            {
+                string? unicodeSuffix = ReadUnicodeStringZ(data, offset + (int)unicodeSuffixOffset);
+                if (!string.IsNullOrWhiteSpace(unicodeSuffix))
+                    return unicodeSuffix;
+            }
+        }
+
+        // Fall back to ANSI suffix at 0x18
+        uint suffixOffset = BitConverter.ToUInt32(data, offset + 0x18);
         if (suffixOffset > 0 && offset + suffixOffset < data.Length)
         {
             return ReadAnsiStringZ(data, offset + (int)suffixOffset);

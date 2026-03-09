@@ -13,8 +13,10 @@ public class SettingsForm : Form
     private readonly Button _removeBtn;
     private readonly CheckBox _autoStartCheckBox;
     private readonly CheckBox _scanOnStartupCheckBox;
+    private readonly CheckBox _verboseLoggingCheckBox;
     private readonly Button _testBtn;
     private readonly Button _saveBtn;
+    private readonly Button _openLogBtn;
     private readonly Label _statusLabel;
 
     private AppConfig _config;
@@ -35,7 +37,7 @@ public class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterScreen;
         Icon = SystemIcons.Shield;
-        ClientSize = new Size(600, 440);
+        ClientSize = new Size(600, 470);
 
         int margin = 14;
         int btnWidth = 130;
@@ -87,20 +89,36 @@ public class SettingsForm : Form
             Checked = _config.ScanOnStartup
         };
 
+        _verboseLoggingCheckBox = new CheckBox
+        {
+            Text = "Enable verbose logging",
+            Location = new Point(margin, checkTop + 56),
+            AutoSize = true,
+            Checked = _config.VerboseLogging
+        };
+
         // Status label
         _statusLabel = new Label
         {
             Text = "",
-            Location = new Point(margin, checkTop + 64),
+            Location = new Point(margin, checkTop + 90),
             Size = new Size(listRight - margin, 24),
             ForeColor = Color.DarkGreen
+        };
+
+        // Open Log button
+        _openLogBtn = new Button
+        {
+            Text = "Open Log",
+            Location = new Point(btnLeft, checkTop + 14),
+            Size = new Size(btnWidth, 34)
         };
 
         // Save button
         _saveBtn = new Button
         {
             Text = "Save",
-            Location = new Point(btnLeft, checkTop + 56),
+            Location = new Point(btnLeft, checkTop + 80),
             Size = new Size(btnWidth, 40),
             Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold)
         };
@@ -109,8 +127,8 @@ public class SettingsForm : Form
         {
             rulesLabel, _rulesListBox,
             _addPrefixBtn, _addGlobBtn, _editBtn, _removeBtn, _testBtn,
-            _autoStartCheckBox, _scanOnStartupCheckBox,
-            _statusLabel, _saveBtn
+            _autoStartCheckBox, _scanOnStartupCheckBox, _verboseLoggingCheckBox,
+            _statusLabel, _openLogBtn, _saveBtn
         });
 
         // Wire events
@@ -119,6 +137,7 @@ public class SettingsForm : Form
         _editBtn.Click += (_, _) => EditRule();
         _removeBtn.Click += (_, _) => RemoveRule();
         _testBtn.Click += (_, _) => TestRules();
+        _openLogBtn.Click += (_, _) => OpenLogFile();
         _saveBtn.Click += (_, _) => SaveConfig();
 
         ResumeLayout(true);
@@ -226,6 +245,7 @@ public class SettingsForm : Form
     {
         _config.AutoStart = _autoStartCheckBox.Checked;
         _config.ScanOnStartup = _scanOnStartupCheckBox.Checked;
+        _config.VerboseLogging = _verboseLoggingCheckBox.Checked;
 
         ConfigSaved?.Invoke(_config);
         SetStatus("Settings saved.", Color.DarkGreen);
@@ -235,6 +255,31 @@ public class SettingsForm : Form
     {
         _statusLabel.Text = text;
         _statusLabel.ForeColor = color;
+    }
+
+    private static void OpenLogFile()
+    {
+        try
+        {
+            string logPath = AppPaths.LogFile;
+            if (File.Exists(logPath))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = logPath,
+                    UseShellExecute = true
+                });
+            }
+            else
+            {
+                MessageBox.Show("Log file not found yet.\nIt will be created when the app logs its first entry.",
+                    "Block From Recent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to open log file", ex);
+        }
     }
 
     private static string? PromptInput(string title, string prompt, string defaultValue = "")
@@ -289,6 +334,7 @@ public class SettingsForm : Form
         {
             AutoStart = source.AutoStart,
             ScanOnStartup = source.ScanOnStartup,
+            VerboseLogging = source.VerboseLogging,
             Rules = source.Rules.Select(r => new ExclusionRule
             {
                 Pattern = r.Pattern,

@@ -51,6 +51,7 @@ public class RecentFileWatcher : IDisposable
 
     private void EnqueueFile(string path)
     {
+        Log.Debug($"Watcher event: {Path.GetFileName(path)}");
         lock (_lock)
         {
             _pendingFiles.Add(path);
