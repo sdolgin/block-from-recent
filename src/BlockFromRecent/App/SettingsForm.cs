@@ -163,7 +163,7 @@ public class SettingsForm : Form
             : "Add Glob Pattern";
         string hint = type == RuleType.PathPrefix
             ? "Enter a path prefix (e.g., D:\\Private\\ or \\\\server\\share\\):"
-            : "Enter a glob pattern (e.g., *.mp4, **\\temp\\*):";
+            : "Enter a glob pattern (e.g., *.pdf, **\\temp\\*):";
 
         string? input = PromptInput(title, hint);
         if (string.IsNullOrWhiteSpace(input))

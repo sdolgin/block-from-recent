@@ -7,7 +7,7 @@ A lightweight Windows system tray utility that automatically removes unwanted fi
 - 🔍 **Real-time monitoring** — Uses `FileSystemWatcher` to detect new entries instantly
 - 🧹 **Startup scan** — Cleans existing Recent files on launch
 - 📁 **Path prefix rules** — Exclude entire folders (e.g., `\\server\share\`, `D:\Private\`)
-- 🌐 **Glob pattern rules** — Exclude by pattern (e.g., `*.mp4`, `**\temp\*`)
+- 🌐 **Glob pattern rules** — Exclude by pattern (e.g., `*.pdf`, `**\temp\*`)
 - 🖥️ **System tray app** — Runs quietly in the background
 - ⚙️ **Simple settings UI** — Add, edit, remove rules with a few clicks
 - 🚀 **Auto-start with Windows** — Optional startup registration via Registry
@@ -51,9 +51,9 @@ iscc src/BlockFromRecent/installer.iss
 2. **Double-click** the tray icon or right-click → **Settings**
 3. **Add exclusion rules**:
    - **Path Prefix**: Any file whose path starts with this prefix is removed from Recent  
-     Example: `\\synology\media\` removes all files opened from that NAS share
+     Example: `\\synology\taxes\` removes all files opened from that NAS share
    - **Glob Pattern**: Wildcard matching on file paths  
-     Example: `*.mp4` removes all MP4 files from Recent
+     Example: `*.pdf` removes all PDF files from Recent
 4. Click **Save**
 5. *Optional*: Check **Start with Windows** to auto-launch
 
@@ -71,11 +71,11 @@ Settings are stored in `%AppData%\BlockFromRecent\config.json`:
 {
   "Rules": [
     {
-      "Pattern": "\\\\synology\\media\\",
+      "Pattern": "\\\\synology\\taxes\\",
       "Type": "PathPrefix"
     },
     {
-      "Pattern": "*.mp4",
+      "Pattern": "*.pdf",
       "Type": "GlobPattern"
     }
   ],

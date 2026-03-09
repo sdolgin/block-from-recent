@@ -53,7 +53,7 @@ public class ExclusionEngine
 
     private static bool MatchesGlob(string normalizedPath, string pattern)
     {
-        // For simple extension patterns like "*.mp4", match against the filename
+        // For simple extension patterns like "*.pdf", match against the filename
         if (pattern.StartsWith("*.") && !pattern.Contains('/') && !pattern.Contains('\\'))
         {
             string fileName = Path.GetFileName(normalizedPath);
