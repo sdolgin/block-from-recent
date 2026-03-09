@@ -1,10 +1,9 @@
+using BlockFromRecent.Config;
+
 namespace BlockFromRecent.Core;
 
 public static class Log
 {
-    private static readonly string LogPath = Path.Combine(
-        AppContext.BaseDirectory, "block-from-recent.log");
-
     private static readonly object Lock = new();
 
     public static void Info(string message) => Write("INFO", message);
@@ -23,10 +22,11 @@ public static class Log
     {
         try
         {
+            AppPaths.EnsureCreated();
             string line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}";
             lock (Lock)
             {
-                File.AppendAllText(LogPath, line + Environment.NewLine);
+                File.AppendAllText(AppPaths.LogFile, line + Environment.NewLine);
             }
         }
         catch
@@ -43,13 +43,14 @@ public static class Log
     {
         try
         {
-            if (!File.Exists(LogPath)) return;
-            var fi = new FileInfo(LogPath);
+            string logPath = AppPaths.LogFile;
+            if (!File.Exists(logPath)) return;
+            var fi = new FileInfo(logPath);
             if (fi.Length <= maxSizeKb * 1024) return;
 
-            var lines = File.ReadAllLines(LogPath);
+            var lines = File.ReadAllLines(logPath);
             var keep = lines.Skip(lines.Length / 2).ToArray();
-            File.WriteAllLines(LogPath, keep);
+            File.WriteAllLines(logPath, keep);
         }
         catch { }
     }

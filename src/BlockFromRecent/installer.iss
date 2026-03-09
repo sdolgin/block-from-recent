@@ -57,8 +57,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "BlockFromRecent"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [UninstallDelete]
-Type: files; Name: "{app}\config.json"
-Type: files; Name: "{app}\block-from-recent.log"
+Type: filesandordirs; Name: "{userappdata}\BlockFromRecent"
 
 [Code]
 // Kill running instance before install/uninstall

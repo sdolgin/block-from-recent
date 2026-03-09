@@ -11,12 +11,11 @@ internal partial class AppConfigJsonContext : JsonSerializerContext { }
 
 public static class ConfigManager
 {
-    private static readonly string ConfigPath = Path.Combine(
-        AppContext.BaseDirectory, "config.json");
-
     public static AppConfig Load()
     {
-        if (!File.Exists(ConfigPath))
+        string configPath = AppPaths.ConfigFile;
+
+        if (!File.Exists(configPath))
         {
             var defaultConfig = new AppConfig();
             Save(defaultConfig);
@@ -25,7 +24,7 @@ public static class ConfigManager
 
         try
         {
-            string json = File.ReadAllText(ConfigPath);
+            string json = File.ReadAllText(configPath);
             return JsonSerializer.Deserialize(json, AppConfigJsonContext.Default.AppConfig) ?? new AppConfig();
         }
         catch
@@ -36,7 +35,8 @@ public static class ConfigManager
 
     public static void Save(AppConfig config)
     {
+        AppPaths.EnsureCreated();
         string json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
-        File.WriteAllText(ConfigPath, json);
+        File.WriteAllText(AppPaths.ConfigFile, json);
     }
 }
