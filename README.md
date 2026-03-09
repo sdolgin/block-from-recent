@@ -17,7 +17,7 @@ A lightweight Windows system tray utility that automatically removes unwanted fi
 ## Installation
 
 ### Option 1: Installer (Recommended)
-1. Download `BlockFromRecent-Setup-x.x.x.exe` from [Releases](../../releases)
+1. Download `BlockFromRecent-Setup-x.x.x.exe` from [Releases](https://github.com/sdolgin/block-from-recent/releases)
 2. Run the installer — choose install location and options
 3. Optionally check **Start with Windows** during setup
 4. The app launches automatically after install
@@ -25,14 +25,14 @@ A lightweight Windows system tray utility that automatically removes unwanted fi
 To uninstall: use **Add or Remove Programs** in Windows Settings, or run the uninstaller from the Start Menu.
 
 ### Option 2: Portable EXE
-1. Download `BlockFromRecent.exe` from [Releases](../../releases)
+1. Download `BlockFromRecent.exe` from [Releases](https://github.com/sdolgin/block-from-recent/releases)
 2. Place it in a permanent folder (e.g., `C:\Tools\BlockFromRecent\`)
 3. Run it — a shield icon appears in the system tray
 
 ### Option 3: Build from Source
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/block-from-recent.git
+git clone https://github.com/sdolgin/block-from-recent.git
 cd block-from-recent
 
 # Build (framework-dependent — requires .NET 8 runtime)

@@ -4,7 +4,7 @@
 #define MyAppName "Block From Recent"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Block From Recent Contributors"
-#define MyAppURL "https://github.com/user/block-from-recent"
+#define MyAppURL "https://github.com/sdolgin/block-from-recent"
 #define MyAppExeName "BlockFromRecent.exe"
 
 [Setup]
