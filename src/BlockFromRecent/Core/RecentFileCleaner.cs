@@ -17,7 +17,7 @@ public class RecentFileCleaner : IDisposable
         _engine = new ExclusionEngine();
         _engine.UpdateRules(config.Rules);
         _watcher = new RecentFileWatcher();
-        _watcher.OnNewRecentFile += HandleNewRecentFile;
+        _watcher.OnNewRecentFile += HandleNewRecentFileAsync;
     }
 
     public void UpdateConfig(AppConfig config)
@@ -102,16 +102,17 @@ public class RecentFileCleaner : IDisposable
         Log.Info($"Periodic scan configured: every {intervalMinutes} minute(s)");
     }
 
-    private void HandleNewRecentFile(string lnkPath)
+    private async Task HandleNewRecentFileAsync(string lnkPath)
     {
-        RetryWithDelay(() =>
+        await RetryWithDelayAsync(() =>
         {
             bool removed = TryRemoveIfExcluded(lnkPath);
             if (removed)
             {
                 // Also clean the matching entry from jump list databases
                 // so it disappears from Explorer's Recent view
-                try { JumpListCleaner.CleanAll(_engine); } catch { }
+                try { JumpListCleaner.CleanAll(_engine); }
+                catch (Exception ex) { Log.Debug($"HandleNewRecentFile: jump list cleaning failed: {ex.Message}"); }
                 JumpListCleaner.NotifyShellRecentChanged();
             }
             return removed;
@@ -155,7 +156,7 @@ public class RecentFileCleaner : IDisposable
         return false;
     }
 
-    private static void RetryWithDelay(Func<bool> action, int maxRetries, int delayMs)
+    private static async Task RetryWithDelayAsync(Func<bool> action, int maxRetries, int delayMs)
     {
         for (int i = 0; i < maxRetries; i++)
         {
@@ -163,7 +164,7 @@ public class RecentFileCleaner : IDisposable
                 return;
 
             if (i < maxRetries - 1)
-                Thread.Sleep(delayMs);
+                await Task.Delay(delayMs);
         }
     }
 

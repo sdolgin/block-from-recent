@@ -7,7 +7,7 @@ public class RecentFileWatcher : IDisposable
     private readonly HashSet<string> _pendingFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _lock = new();
 
-    public event Action<string>? OnNewRecentFile;
+    public event Func<string, Task>? OnNewRecentFile;
 
     public static string RecentFolderPath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Recent));
@@ -26,7 +26,7 @@ public class RecentFileWatcher : IDisposable
 
         // Debounce timer — process pending files after 500ms of quiet
         _debounceTimer = new System.Timers.Timer(500) { AutoReset = false };
-        _debounceTimer.Elapsed += (_, _) => ProcessPendingFiles();
+        _debounceTimer.Elapsed += OnDebounceTimerElapsed;
     }
 
     public void Start()
@@ -66,7 +66,14 @@ public class RecentFileWatcher : IDisposable
         }
     }
 
-    private void ProcessPendingFiles()
+    private void OnDebounceTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        _ = ProcessPendingFilesAsync().ContinueWith(
+            t => Log.Error("ProcessPendingFiles failed", t.Exception!.InnerException ?? t.Exception),
+            TaskContinuationOptions.OnlyOnFaulted);
+    }
+
+    private async Task ProcessPendingFilesAsync()
     {
         string[] files;
         lock (_lock)
@@ -75,9 +82,16 @@ public class RecentFileWatcher : IDisposable
             _pendingFiles.Clear();
         }
 
+        var handler = OnNewRecentFile;
+        if (handler == null)
+            return;
+
         foreach (var file in files)
         {
-            OnNewRecentFile?.Invoke(file);
+            foreach (var d in handler.GetInvocationList())
+            {
+                await ((Func<string, Task>)d)(file);
+            }
         }
     }
 
