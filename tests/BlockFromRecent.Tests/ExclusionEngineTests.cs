@@ -97,7 +97,7 @@ public class ExclusionEngineTests
     }
 
     [Fact]
-    public void NullWhitespacePattern_IsSkipped_ReturnsFalse()
+    public void WhitespacePattern_IsSkipped_ReturnsFalse()
     {
         _engine.UpdateRules(new[]
         {

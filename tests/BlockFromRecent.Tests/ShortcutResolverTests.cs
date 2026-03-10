@@ -163,7 +163,7 @@ public class ShortcutResolverTests
 
         // --- Shell Link Header (76 bytes) ---
         bw.Write((uint)0x4C);           // HeaderSize
-        bw.Write(new byte[16]);          // LinkCLSID
+        bw.Write(new byte[16]);          // LinkCLSID (unused for parsing)
         bw.Write((uint)0x02);           // LinkFlags = HAS_LINK_INFO
         bw.Write(new byte[76 - 4 - 16 - 4]); // Pad rest of header
 
