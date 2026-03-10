@@ -133,6 +133,49 @@ public class ExclusionEngineTests
         Assert.False(_engine.IsExcluded(@"C:\Users\Test\file.txt"));
     }
 
+    // --- Thread safety ---
+
+    [Fact]
+    public async Task ConcurrentUpdateAndRead_DoesNotThrow()
+    {
+        // Verify that updating rules while reading them concurrently does not throw
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
+
+        var writer = Task.Run(() =>
+        {
+            var spin = new SpinWait();
+            while (!cts.IsCancellationRequested)
+            {
+                try
+                {
+                    _engine.UpdateRules(new[] { PathRule(@"C:\Test"), GlobRule("*.txt") });
+                    _engine.UpdateRules(Array.Empty<ExclusionRule>());
+                }
+                catch (Exception ex) { exceptions.Add(ex); }
+                spin.SpinOnce();
+            }
+        });
+
+        var reader = Task.Run(() =>
+        {
+            var spin = new SpinWait();
+            while (!cts.IsCancellationRequested)
+            {
+                try
+                {
+                    _engine.IsExcluded(@"C:\Test\file.txt");
+                }
+                catch (Exception ex) { exceptions.Add(ex); }
+                spin.SpinOnce();
+            }
+        });
+
+        await Task.WhenAll(writer, reader);
+
+        Assert.Empty(exceptions);
+    }
+
     // --- Helpers ---
 
     private static ExclusionRule PathRule(string pattern) =>
