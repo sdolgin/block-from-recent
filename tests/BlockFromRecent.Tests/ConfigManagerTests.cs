@@ -50,6 +50,7 @@ public class ConfigManagerTests : IDisposable
             AutoStart = true,
             ScanOnStartup = false,
             VerboseLogging = true,
+            PeriodicScanIntervalMinutes = 10,
             Rules = new List<ExclusionRule>
             {
                 new() { Pattern = @"C:\Temp", Type = RuleType.PathPrefix },
@@ -64,6 +65,7 @@ public class ConfigManagerTests : IDisposable
         Assert.Equal(original.AutoStart, loaded.AutoStart);
         Assert.Equal(original.ScanOnStartup, loaded.ScanOnStartup);
         Assert.Equal(original.VerboseLogging, loaded.VerboseLogging);
+        Assert.Equal(original.PeriodicScanIntervalMinutes, loaded.PeriodicScanIntervalMinutes);
         Assert.Equal(original.Rules.Count, loaded.Rules.Count);
 
         for (int i = 0; i < original.Rules.Count; i++)

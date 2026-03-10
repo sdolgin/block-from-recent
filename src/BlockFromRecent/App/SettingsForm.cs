@@ -14,7 +14,11 @@ public class SettingsForm : Form
     private readonly CheckBox _autoStartCheckBox;
     private readonly CheckBox _scanOnStartupCheckBox;
     private readonly CheckBox _verboseLoggingCheckBox;
+    private readonly Label _periodicScanLabel;
+    private readonly NumericUpDown _periodicScanInterval;
     private readonly Button _testBtn;
+    private readonly Button _exportBtn;
+    private readonly Button _importBtn;
     private readonly Button _saveBtn;
     private readonly Button _openLogBtn;
     private readonly Label _statusLabel;
@@ -37,7 +41,7 @@ public class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterScreen;
         Icon = SystemIcons.Shield;
-        ClientSize = new Size(600, 470);
+        ClientSize = new Size(600, 530);
 
         int margin = 14;
         int btnWidth = 130;
@@ -97,11 +101,28 @@ public class SettingsForm : Form
             Checked = _config.VerboseLogging
         };
 
+        // Periodic scan interval
+        _periodicScanLabel = new Label
+        {
+            Text = "Periodic scan interval (minutes, 0 = disabled):",
+            Location = new Point(margin, checkTop + 88),
+            AutoSize = true
+        };
+
+        _periodicScanInterval = new NumericUpDown
+        {
+            Minimum = 0,
+            Maximum = 1440,
+            Value = _config.PeriodicScanIntervalMinutes,
+            Location = new Point(margin + 290, checkTop + 85),
+            Size = new Size(70, 26)
+        };
+
         // Status label
         _statusLabel = new Label
         {
             Text = "",
-            Location = new Point(margin, checkTop + 90),
+            Location = new Point(margin, checkTop + 120),
             Size = new Size(listRight - margin, 24),
             ForeColor = Color.DarkGreen
         };
@@ -114,11 +135,27 @@ public class SettingsForm : Form
             Size = new Size(btnWidth, 34)
         };
 
+        // Export Rules button
+        _exportBtn = new Button
+        {
+            Text = "Export Rules",
+            Location = new Point(btnLeft, checkTop + 54),
+            Size = new Size(btnWidth, 34)
+        };
+
+        // Import Rules button
+        _importBtn = new Button
+        {
+            Text = "Import Rules",
+            Location = new Point(btnLeft, checkTop + 94),
+            Size = new Size(btnWidth, 34)
+        };
+
         // Save button
         _saveBtn = new Button
         {
             Text = "Save",
-            Location = new Point(btnLeft, checkTop + 80),
+            Location = new Point(btnLeft, checkTop + 170),
             Size = new Size(btnWidth, 40),
             Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold)
         };
@@ -128,7 +165,8 @@ public class SettingsForm : Form
             rulesLabel, _rulesListBox,
             _addPrefixBtn, _addGlobBtn, _editBtn, _removeBtn, _testBtn,
             _autoStartCheckBox, _scanOnStartupCheckBox, _verboseLoggingCheckBox,
-            _statusLabel, _openLogBtn, _saveBtn
+            _periodicScanLabel, _periodicScanInterval,
+            _statusLabel, _openLogBtn, _exportBtn, _importBtn, _saveBtn
         });
 
         // Wire events
@@ -138,6 +176,8 @@ public class SettingsForm : Form
         _removeBtn.Click += (_, _) => RemoveRule();
         _testBtn.Click += (_, _) => TestRules();
         _openLogBtn.Click += (_, _) => OpenLogFile();
+        _exportBtn.Click += (_, _) => ExportRules();
+        _importBtn.Click += (_, _) => ImportRules();
         _saveBtn.Click += (_, _) => SaveConfig();
 
         ResumeLayout(true);
@@ -165,7 +205,8 @@ public class SettingsForm : Form
             ? "Enter a path prefix (e.g., D:\\Private\\ or \\\\server\\share\\):"
             : "Enter a glob pattern (e.g., *.mp4, **\\temp\\*):";
 
-        string? input = PromptInput(title, hint);
+        string? input = PromptInput(title, hint, "",
+            text => RuleValidator.Validate(text, type, _config.Rules));
         if (string.IsNullOrWhiteSpace(input))
             return;
 
@@ -179,9 +220,11 @@ public class SettingsForm : Form
         if (_rulesListBox.SelectedIndex < 0)
             return;
 
-        var rule = _config.Rules[_rulesListBox.SelectedIndex];
+        int index = _rulesListBox.SelectedIndex;
+        var rule = _config.Rules[index];
         string title = rule.Type == RuleType.PathPrefix ? "Edit Path Prefix" : "Edit Glob Pattern";
-        string? input = PromptInput(title, "Edit the pattern:", rule.Pattern);
+        string? input = PromptInput(title, "Edit the pattern:", rule.Pattern,
+            text => RuleValidator.Validate(text, rule.Type, _config.Rules, index));
         if (input == null)
             return;
 
@@ -254,9 +297,122 @@ public class SettingsForm : Form
         _config.AutoStart = _autoStartCheckBox.Checked;
         _config.ScanOnStartup = _scanOnStartupCheckBox.Checked;
         _config.VerboseLogging = _verboseLoggingCheckBox.Checked;
+        _config.PeriodicScanIntervalMinutes = (int)_periodicScanInterval.Value;
 
         ConfigSaved?.Invoke(_config);
         SetStatus("Settings saved.", Color.DarkGreen);
+    }
+
+    private void ExportRules()
+    {
+        if (_config.Rules.Count == 0)
+        {
+            SetStatus("No rules to export.", Color.DarkRed);
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Export Exclusion Rules",
+            Filter = "JSON files (*.json)|*.json",
+            DefaultExt = "json",
+            FileName = "exclusion-rules.json"
+        };
+
+        if (dialog.ShowDialog() != DialogResult.OK)
+            return;
+
+        try
+        {
+            ConfigManager.ExportRules(_config.Rules, dialog.FileName);
+            SetStatus($"Exported {_config.Rules.Count} rule(s).", Color.DarkGreen);
+            Log.Info($"Exported {_config.Rules.Count} rule(s) to {dialog.FileName}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to export rules", ex);
+            SetStatus($"Export failed: {ex.Message}", Color.DarkRed);
+        }
+    }
+
+    private void ImportRules()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Import Exclusion Rules",
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            DefaultExt = "json"
+        };
+
+        if (dialog.ShowDialog() != DialogResult.OK)
+            return;
+
+        RulesExport import;
+        try
+        {
+            import = ConfigManager.ImportRules(dialog.FileName);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Failed to import rules from {dialog.FileName}: {ex.Message}");
+            MessageBox.Show(
+                $"The selected file is not a valid rules file.\n\n{ex.Message}",
+                "Import Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        if (import.Rules.Count == 0)
+        {
+            MessageBox.Show(
+                "The selected file contains no rules.",
+                "Import Rules",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"The file contains {import.Rules.Count} rule(s).\n\n" +
+            "Yes = Replace all existing rules\n" +
+            "No = Merge with existing rules (skip duplicates)",
+            "Import Rules",
+            MessageBoxButtons.YesNoCancel,
+            MessageBoxIcon.Question);
+
+        if (result == DialogResult.Cancel)
+            return;
+
+        if (result == DialogResult.Yes)
+        {
+            _config.Rules.Clear();
+            _config.Rules.AddRange(import.Rules);
+            RefreshRulesList();
+            SetStatus($"Replaced with {import.Rules.Count} imported rule(s) (not yet saved).", Color.DarkOrange);
+            Log.Info($"Imported {import.Rules.Count} rule(s) (replace mode) from {dialog.FileName}");
+        }
+        else
+        {
+            int added = 0;
+            foreach (var rule in import.Rules)
+            {
+                bool isDuplicate = _config.Rules.Any(existing =>
+                    string.Equals(existing.Pattern, rule.Pattern, StringComparison.OrdinalIgnoreCase)
+                    && existing.Type == rule.Type);
+
+                if (!isDuplicate)
+                {
+                    _config.Rules.Add(rule);
+                    added++;
+                }
+            }
+
+            RefreshRulesList();
+            int skipped = import.Rules.Count - added;
+            SetStatus($"Merged: {added} added, {skipped} duplicate(s) skipped (not yet saved).", Color.DarkOrange);
+            Log.Info($"Imported {added} rule(s), skipped {skipped} duplicate(s) (merge mode) from {dialog.FileName}");
+        }
     }
 
     private void SetStatus(string text, Color color)
@@ -290,7 +446,8 @@ public class SettingsForm : Form
         }
     }
 
-    private static string? PromptInput(string title, string prompt, string defaultValue = "")
+    private static string? PromptInput(string title, string prompt, string defaultValue = "",
+        Func<string, string?>? validate = null)
     {
         using var form = new Form
         {
@@ -301,7 +458,7 @@ public class SettingsForm : Form
             StartPosition = FormStartPosition.CenterParent,
             MaximizeBox = false,
             MinimizeBox = false,
-            ClientSize = new Size(520, 140)
+            ClientSize = new Size(520, 160)
         };
 
         int m = 14;
@@ -313,12 +470,21 @@ public class SettingsForm : Form
             Size = new Size(520 - m * 2, 26)
         };
 
+        var errorLabel = new Label
+        {
+            Text = "",
+            Location = new Point(m, m + 58),
+            Size = new Size(520 - m * 2, 20),
+            ForeColor = Color.DarkRed,
+            Font = new Font(Control.DefaultFont.FontFamily, 8.5f)
+        };
+
         var okBtn = new Button
         {
             Text = "OK",
             DialogResult = DialogResult.OK,
             Size = new Size(90, 34),
-            Location = new Point(520 - m - 90 - 100, m + 70)
+            Location = new Point(520 - m - 90 - 100, m + 90)
         };
 
         var cancelBtn = new Button
@@ -326,12 +492,31 @@ public class SettingsForm : Form
             Text = "Cancel",
             DialogResult = DialogResult.Cancel,
             Size = new Size(90, 34),
-            Location = new Point(520 - m - 90, m + 70)
+            Location = new Point(520 - m - 90, m + 90)
         };
+
+        if (validate != null)
+        {
+            // Intercept the OK button to run validation before closing
+            okBtn.DialogResult = DialogResult.None;
+            okBtn.Click += (_, _) =>
+            {
+                string? error = validate(textBox.Text);
+                if (error != null)
+                {
+                    errorLabel.Text = error;
+                }
+                else
+                {
+                    form.DialogResult = DialogResult.OK;
+                    form.Close();
+                }
+            };
+        }
 
         form.AcceptButton = okBtn;
         form.CancelButton = cancelBtn;
-        form.Controls.AddRange(new Control[] { label, textBox, okBtn, cancelBtn });
+        form.Controls.AddRange(new Control[] { label, textBox, errorLabel, okBtn, cancelBtn });
 
         return form.ShowDialog() == DialogResult.OK ? textBox.Text : null;
     }
@@ -343,6 +528,7 @@ public class SettingsForm : Form
             AutoStart = source.AutoStart,
             ScanOnStartup = source.ScanOnStartup,
             VerboseLogging = source.VerboseLogging,
+            PeriodicScanIntervalMinutes = source.PeriodicScanIntervalMinutes,
             Rules = source.Rules.Select(r => new ExclusionRule
             {
                 Pattern = r.Pattern,

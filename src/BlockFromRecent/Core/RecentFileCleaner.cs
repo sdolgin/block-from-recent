@@ -6,6 +6,8 @@ public class RecentFileCleaner : IDisposable
 {
     private readonly RecentFileWatcher _watcher;
     private readonly ExclusionEngine _engine;
+    private readonly System.Timers.Timer _jumpListCleanTimer;
+    private System.Timers.Timer? _periodicScanTimer;
     private AppConfig _config;
 
     public event Action<string, string>? OnFileRemoved; // (lnkPath, targetPath)
@@ -16,13 +18,18 @@ public class RecentFileCleaner : IDisposable
         _engine = new ExclusionEngine();
         _engine.UpdateRules(config.Rules);
         _watcher = new RecentFileWatcher();
-        _watcher.OnNewRecentFile += HandleNewRecentFile;
+        _watcher.OnNewRecentFile += HandleNewRecentFileAsync;
+
+        // Debounce jump list cleaning — wait for a quiet period before scanning
+        _jumpListCleanTimer = new System.Timers.Timer(1000) { AutoReset = false };
+        _jumpListCleanTimer.Elapsed += (_, _) => RunDebouncedJumpListClean();
     }
 
     public void UpdateConfig(AppConfig config)
     {
         _config = config;
         _engine.UpdateRules(config.Rules);
+        ConfigurePeriodicScan(config.PeriodicScanIntervalMinutes);
     }
 
     public void Start()
@@ -31,11 +38,13 @@ public class RecentFileCleaner : IDisposable
             ScanExisting();
 
         _watcher.Start();
+        ConfigurePeriodicScan(_config.PeriodicScanIntervalMinutes);
     }
 
     public void Stop()
     {
         _watcher.Stop();
+        _periodicScanTimer?.Stop();
     }
 
     /// <summary>
@@ -76,20 +85,64 @@ public class RecentFileCleaner : IDisposable
         return removed;
     }
 
-    private void HandleNewRecentFile(string lnkPath)
+    private void ConfigurePeriodicScan(int intervalMinutes)
     {
-        RetryWithDelay(() =>
+        _periodicScanTimer?.Stop();
+        _periodicScanTimer?.Dispose();
+        _periodicScanTimer = null;
+
+        if (intervalMinutes <= 0)
+        {
+            Log.Info("Periodic scan disabled");
+            return;
+        }
+
+        _periodicScanTimer = new System.Timers.Timer(intervalMinutes * 60_000) { AutoReset = true };
+        _periodicScanTimer.Elapsed += (_, _) =>
+        {
+            Log.Info("Periodic scan triggered");
+            ScanExisting();
+        };
+        _periodicScanTimer.Start();
+        Log.Info($"Periodic scan configured: every {intervalMinutes} minute(s)");
+    }
+
+    private async Task HandleNewRecentFileAsync(string lnkPath)
+    {
+        await RetryWithDelayAsync(() =>
         {
             bool removed = TryRemoveIfExcluded(lnkPath);
             if (removed)
             {
-                // Also clean the matching entry from jump list databases
-                // so it disappears from Explorer's Recent view
-                try { JumpListCleaner.CleanAll(_engine); } catch { }
+                // Notify Explorer immediately so the .lnk disappears from Recent
                 JumpListCleaner.NotifyShellRecentChanged();
+
+                // Schedule a debounced jump list clean — multiple removals
+                // within the timer window are batched into a single CleanAll call
+                ScheduleJumpListClean();
             }
             return removed;
         }, maxRetries: 3, delayMs: 200);
+    }
+
+    private void ScheduleJumpListClean()
+    {
+        _jumpListCleanTimer.Stop();
+        _jumpListCleanTimer.Start();
+        Log.Debug("JumpList clean scheduled (debounced)");
+    }
+
+    private void RunDebouncedJumpListClean()
+    {
+        try
+        {
+            // CleanAll calls NotifyShellRecentChanged internally when it removes entries
+            JumpListCleaner.CleanAll(_engine);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Debounced JumpList clean failed", ex);
+        }
     }
 
     private bool TryRemoveIfExcluded(string lnkPath)
@@ -129,7 +182,7 @@ public class RecentFileCleaner : IDisposable
         return false;
     }
 
-    private static void RetryWithDelay(Func<bool> action, int maxRetries, int delayMs)
+    private static async Task RetryWithDelayAsync(Func<bool> action, int maxRetries, int delayMs)
     {
         for (int i = 0; i < maxRetries; i++)
         {
@@ -137,12 +190,14 @@ public class RecentFileCleaner : IDisposable
                 return;
 
             if (i < maxRetries - 1)
-                Thread.Sleep(delayMs);
+                await Task.Delay(delayMs);
         }
     }
 
     public void Dispose()
     {
+        _periodicScanTimer?.Dispose();
         _watcher.Dispose();
+        _jumpListCleanTimer.Dispose();
     }
 }

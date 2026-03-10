@@ -24,4 +24,10 @@ public class AppConfig
     public bool AutoStart { get; set; } = false;
     public bool ScanOnStartup { get; set; } = true;
     public bool VerboseLogging { get; set; } = false;
+    public int PeriodicScanIntervalMinutes { get; set; } = 5;
+}
+
+public class RulesExport
+{
+    public List<ExclusionRule> Rules { get; set; } = new();
 }
