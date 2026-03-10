@@ -103,6 +103,17 @@ You can edit this file manually if you prefer.
 3. The target path is checked against all exclusion rules (path prefix + glob matching)
 4. If it matches any rule, the `.lnk` file is silently deleted
 
+## Versioning
+
+The app version is defined in [`Directory.Build.props`](Directory.Build.props) at the repository root. This is the single source of truth for the .NET assembly version. The Inno Setup installer script ([`installer.iss`](src/BlockFromRecent/installer.iss)) also declares a default version — keep it in sync with `Directory.Build.props`.
+
+**To prepare a new release:**
+
+1. Update the `<Version>` in `Directory.Build.props` to the new version (e.g., `1.3.0`)
+2. Update `#define MyAppVersion` in `installer.iss` to the same version
+3. Commit, push, and create a git tag matching `v#.#.#` (e.g., `v1.3.0`)
+4. The [release workflow](.github/workflows/release.yml) will build and publish automatically — it overrides both version values from the tag, so the tag is the ultimate source of truth for releases
+
 ## License
 
 [MIT](LICENSE)
