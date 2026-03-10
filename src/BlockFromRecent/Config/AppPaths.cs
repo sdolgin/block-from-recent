@@ -12,6 +12,7 @@ public static class AppPaths
         "BlockFromRecent");
 
     public static string ConfigFile => Path.Combine(DataDir, "config.json");
+    public static string CorruptConfigBackupFile => Path.Combine(DataDir, "config.json.corrupt");
     public static string LogFile => Path.Combine(DataDir, "block-from-recent.log");
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BlockFromRecent.Core;
 
 namespace BlockFromRecent.Config;
 
@@ -11,7 +12,7 @@ internal partial class AppConfigJsonContext : JsonSerializerContext { }
 
 public static class ConfigManager
 {
-    public static AppConfig Load()
+    public static (AppConfig Config, bool WasCorrupted) Load()
     {
         string configPath = AppPaths.ConfigFile;
 
@@ -19,17 +20,22 @@ public static class ConfigManager
         {
             var defaultConfig = new AppConfig();
             Save(defaultConfig);
-            return defaultConfig;
+            return (defaultConfig, false);
         }
 
         try
         {
             string json = File.ReadAllText(configPath);
-            return JsonSerializer.Deserialize(json, AppConfigJsonContext.Default.AppConfig) ?? new AppConfig();
+            var config = JsonSerializer.Deserialize(json, AppConfigJsonContext.Default.AppConfig) ?? new AppConfig();
+            return (config, false);
         }
-        catch
+        catch (Exception ex)
         {
-            return new AppConfig();
+            Log.Warn($"Config file is corrupted or unreadable, resetting to defaults: {ex.GetType().Name}: {ex.Message}");
+
+            BackupCorruptedConfig(configPath);
+
+            return (new AppConfig(), true);
         }
     }
 
@@ -38,5 +44,19 @@ public static class ConfigManager
         AppPaths.EnsureCreated();
         string json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
         File.WriteAllText(AppPaths.ConfigFile, json);
+    }
+
+    private static void BackupCorruptedConfig(string configPath)
+    {
+        try
+        {
+            string backupPath = AppPaths.CorruptConfigBackupFile;
+            File.Copy(configPath, backupPath, overwrite: true);
+            Log.Info($"Corrupted config backed up to {backupPath}");
+        }
+        catch (Exception backupEx)
+        {
+            Log.Warn($"Failed to back up corrupted config: {backupEx.GetType().Name}: {backupEx.Message}");
+        }
     }
 }

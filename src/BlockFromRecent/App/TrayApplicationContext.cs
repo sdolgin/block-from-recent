@@ -11,7 +11,7 @@ public class TrayApplicationContext : ApplicationContext
     private AppConfig _config;
     private SettingsForm? _settingsForm;
 
-    public TrayApplicationContext(AppConfig config)
+    public TrayApplicationContext(AppConfig config, bool wasCorrupted = false)
     {
         _config = config;
         Log.Verbose = config.VerboseLogging;
@@ -30,6 +30,15 @@ public class TrayApplicationContext : ApplicationContext
 
         Log.Info("Tray icon created, starting cleaner");
         _cleaner.Start();
+
+        if (wasCorrupted)
+        {
+            _trayIcon.ShowBalloonTip(
+                5000,
+                "Block From Recent",
+                "Config file was corrupted and has been reset to defaults.\nA backup was saved as config.json.corrupt.",
+                ToolTipIcon.Warning);
+        }
     }
 
     private static Icon LoadAppIcon()
