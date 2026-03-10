@@ -165,7 +165,8 @@ public class SettingsForm : Form
             ? "Enter a path prefix (e.g., D:\\Private\\ or \\\\server\\share\\):"
             : "Enter a glob pattern (e.g., *.mp4, **\\temp\\*):";
 
-        string? input = PromptInput(title, hint);
+        string? input = PromptInput(title, hint, "",
+            text => RuleValidator.Validate(text, type, _config.Rules));
         if (string.IsNullOrWhiteSpace(input))
             return;
 
@@ -179,9 +180,11 @@ public class SettingsForm : Form
         if (_rulesListBox.SelectedIndex < 0)
             return;
 
-        var rule = _config.Rules[_rulesListBox.SelectedIndex];
+        int index = _rulesListBox.SelectedIndex;
+        var rule = _config.Rules[index];
         string title = rule.Type == RuleType.PathPrefix ? "Edit Path Prefix" : "Edit Glob Pattern";
-        string? input = PromptInput(title, "Edit the pattern:", rule.Pattern);
+        string? input = PromptInput(title, "Edit the pattern:", rule.Pattern,
+            text => RuleValidator.Validate(text, rule.Type, _config.Rules, index));
         if (input == null)
             return;
 
@@ -290,7 +293,8 @@ public class SettingsForm : Form
         }
     }
 
-    private static string? PromptInput(string title, string prompt, string defaultValue = "")
+    private static string? PromptInput(string title, string prompt, string defaultValue = "",
+        Func<string, string?>? validate = null)
     {
         using var form = new Form
         {
@@ -301,7 +305,7 @@ public class SettingsForm : Form
             StartPosition = FormStartPosition.CenterParent,
             MaximizeBox = false,
             MinimizeBox = false,
-            ClientSize = new Size(520, 140)
+            ClientSize = new Size(520, 160)
         };
 
         int m = 14;
@@ -313,12 +317,21 @@ public class SettingsForm : Form
             Size = new Size(520 - m * 2, 26)
         };
 
+        var errorLabel = new Label
+        {
+            Text = "",
+            Location = new Point(m, m + 58),
+            Size = new Size(520 - m * 2, 20),
+            ForeColor = Color.DarkRed,
+            Font = new Font(Control.DefaultFont.FontFamily, 8.5f)
+        };
+
         var okBtn = new Button
         {
             Text = "OK",
             DialogResult = DialogResult.OK,
             Size = new Size(90, 34),
-            Location = new Point(520 - m - 90 - 100, m + 70)
+            Location = new Point(520 - m - 90 - 100, m + 90)
         };
 
         var cancelBtn = new Button
@@ -326,12 +339,31 @@ public class SettingsForm : Form
             Text = "Cancel",
             DialogResult = DialogResult.Cancel,
             Size = new Size(90, 34),
-            Location = new Point(520 - m - 90, m + 70)
+            Location = new Point(520 - m - 90, m + 90)
         };
+
+        if (validate != null)
+        {
+            // Intercept the OK button to run validation before closing
+            okBtn.DialogResult = DialogResult.None;
+            okBtn.Click += (_, _) =>
+            {
+                string? error = validate(textBox.Text);
+                if (error != null)
+                {
+                    errorLabel.Text = error;
+                }
+                else
+                {
+                    form.DialogResult = DialogResult.OK;
+                    form.Close();
+                }
+            };
+        }
 
         form.AcceptButton = okBtn;
         form.CancelButton = cancelBtn;
-        form.Controls.AddRange(new Control[] { label, textBox, okBtn, cancelBtn });
+        form.Controls.AddRange(new Control[] { label, textBox, errorLabel, okBtn, cancelBtn });
 
         return form.ShowDialog() == DialogResult.OK ? textBox.Text : null;
     }
