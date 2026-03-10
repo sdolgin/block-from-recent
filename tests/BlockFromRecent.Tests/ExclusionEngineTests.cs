@@ -139,7 +139,7 @@ public class ExclusionEngineTests
     public async Task ConcurrentUpdateAndRead_DoesNotThrow()
     {
         // Verify that updating rules while reading them concurrently does not throw
-        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
 
         var writer = Task.Run(() =>
