@@ -22,6 +22,7 @@ public class RecentFileWatcher : IDisposable
 
         _watcher.Created += OnFileCreated;
         _watcher.Renamed += OnFileRenamed;
+        _watcher.Error += OnWatcherError;
 
         // Debounce timer — process pending files after 500ms of quiet
         _debounceTimer = new System.Timers.Timer(500) { AutoReset = false };
@@ -36,6 +37,11 @@ public class RecentFileWatcher : IDisposable
     public void Stop()
     {
         _watcher.EnableRaisingEvents = false;
+    }
+
+    private void OnWatcherError(object sender, ErrorEventArgs e)
+    {
+        Log.Warn($"FileSystemWatcher error (possible buffer overflow): {e.GetException().Message}");
     }
 
     private void OnFileCreated(object sender, FileSystemEventArgs e)
