@@ -88,6 +88,9 @@ public class RecentFileCleaner : IDisposable
             bool removed = TryRemoveIfExcluded(lnkPath);
             if (removed)
             {
+                // Notify Explorer immediately so the .lnk disappears from Recent
+                JumpListCleaner.NotifyShellRecentChanged();
+
                 // Schedule a debounced jump list clean — multiple removals
                 // within the timer window are batched into a single CleanAll call
                 ScheduleJumpListClean();
@@ -107,14 +110,13 @@ public class RecentFileCleaner : IDisposable
     {
         try
         {
+            // CleanAll calls NotifyShellRecentChanged internally when it removes entries
             JumpListCleaner.CleanAll(_engine);
         }
         catch (Exception ex)
         {
             Log.Error("Debounced JumpList clean failed", ex);
         }
-
-        JumpListCleaner.NotifyShellRecentChanged();
     }
 
     private bool TryRemoveIfExcluded(string lnkPath)
