@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.1.0)'
+        required: true
 
 permissions:
   contents: write
@@ -13,15 +18,33 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Determine release tag
+        id: ref
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag }}"
+            if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+              Write-Error "Tag '$tag' does not match expected format v#.#.#"
+              exit 1
+            }
+            echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "TAG=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
+          }
+
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.ref.outputs.TAG }}
 
       - name: Restore NuGet packages
         run: dotnet restore
 
       - name: Extract version from tag
         id: version
+        shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          $version = "${{ steps.ref.outputs.TAG }}".TrimStart('v')
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
 
       - name: Build single-file executable
@@ -41,8 +64,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create "${{ github.ref_name }}"
+          gh release create "${{ steps.ref.outputs.TAG }}"
           "src/BlockFromRecent/bin/Release/net8.0-windows/win-x64/publish/BlockFromRecent.exe"
           "installer/output/BlockFromRecent-Setup-${{ steps.version.outputs.VERSION }}.exe"
-          --title "${{ github.ref_name }}"
+          --title "${{ steps.ref.outputs.TAG }}"
           --generate-notes
