@@ -36,7 +36,7 @@ public class TrayApplicationContext : ApplicationContext
             _trayIcon.ShowBalloonTip(
                 5000,
                 "Block From Recent",
-                "Config file was corrupted and has been reset to defaults.\nA backup was saved as config.json.corrupt.",
+                $"Config file was corrupted and has been reset to defaults.\nA backup was saved as {Path.GetFileName(AppPaths.CorruptConfigBackupFile)}.",
                 ToolTipIcon.Warning);
         }
     }

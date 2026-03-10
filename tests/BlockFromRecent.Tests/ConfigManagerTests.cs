@@ -86,6 +86,7 @@ public class ConfigManagerTests : IDisposable
         Assert.Empty(config.Rules);
         Assert.False(config.AutoStart);
         Assert.True(config.ScanOnStartup);
+        Assert.False(config.VerboseLogging);
     }
 
     [Fact]
