@@ -25,3 +25,8 @@ public class AppConfig
     public bool ScanOnStartup { get; set; } = true;
     public bool VerboseLogging { get; set; } = false;
 }
+
+public class RulesExport
+{
+    public List<ExclusionRule> Rules { get; set; } = new();
+}
