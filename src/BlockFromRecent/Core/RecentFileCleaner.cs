@@ -16,7 +16,7 @@ public class RecentFileCleaner : IDisposable
         _engine = new ExclusionEngine();
         _engine.UpdateRules(config.Rules);
         _watcher = new RecentFileWatcher();
-        _watcher.OnNewRecentFile += HandleNewRecentFile;
+        _watcher.OnNewRecentFile += HandleNewRecentFileAsync;
     }
 
     public void UpdateConfig(AppConfig config)
@@ -76,9 +76,9 @@ public class RecentFileCleaner : IDisposable
         return removed;
     }
 
-    private void HandleNewRecentFile(string lnkPath)
+    private async Task HandleNewRecentFileAsync(string lnkPath)
     {
-        RetryWithDelay(() =>
+        await RetryWithDelayAsync(() =>
         {
             bool removed = TryRemoveIfExcluded(lnkPath);
             if (removed)
@@ -129,7 +129,7 @@ public class RecentFileCleaner : IDisposable
         return false;
     }
 
-    private static void RetryWithDelay(Func<bool> action, int maxRetries, int delayMs)
+    private static async Task RetryWithDelayAsync(Func<bool> action, int maxRetries, int delayMs)
     {
         for (int i = 0; i < maxRetries; i++)
         {
@@ -137,7 +137,7 @@ public class RecentFileCleaner : IDisposable
                 return;
 
             if (i < maxRetries - 1)
-                Thread.Sleep(delayMs);
+                await Task.Delay(delayMs);
         }
     }
 
