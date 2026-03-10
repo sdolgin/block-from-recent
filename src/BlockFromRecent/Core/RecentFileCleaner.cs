@@ -85,7 +85,8 @@ public class RecentFileCleaner : IDisposable
             {
                 // Also clean the matching entry from jump list databases
                 // so it disappears from Explorer's Recent view
-                try { JumpListCleaner.CleanAll(_engine); } catch { }
+                try { JumpListCleaner.CleanAll(_engine); }
+                catch (Exception ex) { Log.Debug($"HandleNewRecentFile: jump list cleaning failed: {ex.Message}"); }
                 JumpListCleaner.NotifyShellRecentChanged();
             }
             return removed;
