@@ -6,6 +6,7 @@ public class RecentFileCleaner : IDisposable
 {
     private readonly RecentFileWatcher _watcher;
     private readonly ExclusionEngine _engine;
+    private System.Timers.Timer? _periodicScanTimer;
     private AppConfig _config;
 
     public event Action<string, string>? OnFileRemoved; // (lnkPath, targetPath)
@@ -23,6 +24,7 @@ public class RecentFileCleaner : IDisposable
     {
         _config = config;
         _engine.UpdateRules(config.Rules);
+        ConfigurePeriodicScan(config.PeriodicScanIntervalMinutes);
     }
 
     public void Start()
@@ -31,11 +33,13 @@ public class RecentFileCleaner : IDisposable
             ScanExisting();
 
         _watcher.Start();
+        ConfigurePeriodicScan(_config.PeriodicScanIntervalMinutes);
     }
 
     public void Stop()
     {
         _watcher.Stop();
+        _periodicScanTimer?.Stop();
     }
 
     /// <summary>
@@ -74,6 +78,28 @@ public class RecentFileCleaner : IDisposable
         }
 
         return removed;
+    }
+
+    private void ConfigurePeriodicScan(int intervalMinutes)
+    {
+        _periodicScanTimer?.Stop();
+        _periodicScanTimer?.Dispose();
+        _periodicScanTimer = null;
+
+        if (intervalMinutes <= 0)
+        {
+            Log.Info("Periodic scan disabled");
+            return;
+        }
+
+        _periodicScanTimer = new System.Timers.Timer(intervalMinutes * 60_000) { AutoReset = true };
+        _periodicScanTimer.Elapsed += (_, _) =>
+        {
+            Log.Info("Periodic scan triggered");
+            ScanExisting();
+        };
+        _periodicScanTimer.Start();
+        Log.Info($"Periodic scan configured: every {intervalMinutes} minute(s)");
     }
 
     private void HandleNewRecentFile(string lnkPath)
@@ -143,6 +169,7 @@ public class RecentFileCleaner : IDisposable
 
     public void Dispose()
     {
+        _periodicScanTimer?.Dispose();
         _watcher.Dispose();
     }
 }
