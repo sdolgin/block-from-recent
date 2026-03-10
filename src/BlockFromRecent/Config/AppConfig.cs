@@ -26,3 +26,8 @@ public class AppConfig
     public bool VerboseLogging { get; set; } = false;
     public int PeriodicScanIntervalMinutes { get; set; } = 5;
 }
+
+public class RulesExport
+{
+    public List<ExclusionRule> Rules { get; set; } = new();
+}

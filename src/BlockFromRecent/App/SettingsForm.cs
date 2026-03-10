@@ -17,6 +17,8 @@ public class SettingsForm : Form
     private readonly Label _periodicScanLabel;
     private readonly NumericUpDown _periodicScanInterval;
     private readonly Button _testBtn;
+    private readonly Button _exportBtn;
+    private readonly Button _importBtn;
     private readonly Button _saveBtn;
     private readonly Button _openLogBtn;
     private readonly Label _statusLabel;
@@ -39,7 +41,7 @@ public class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterScreen;
         Icon = SystemIcons.Shield;
-        ClientSize = new Size(600, 500);
+        ClientSize = new Size(600, 530);
 
         int margin = 14;
         int btnWidth = 130;
@@ -133,11 +135,27 @@ public class SettingsForm : Form
             Size = new Size(btnWidth, 34)
         };
 
+        // Export Rules button
+        _exportBtn = new Button
+        {
+            Text = "Export Rules",
+            Location = new Point(btnLeft, checkTop + 54),
+            Size = new Size(btnWidth, 34)
+        };
+
+        // Import Rules button
+        _importBtn = new Button
+        {
+            Text = "Import Rules",
+            Location = new Point(btnLeft, checkTop + 94),
+            Size = new Size(btnWidth, 34)
+        };
+
         // Save button
         _saveBtn = new Button
         {
             Text = "Save",
-            Location = new Point(btnLeft, checkTop + 110),
+            Location = new Point(btnLeft, checkTop + 170),
             Size = new Size(btnWidth, 40),
             Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold)
         };
@@ -148,7 +166,7 @@ public class SettingsForm : Form
             _addPrefixBtn, _addGlobBtn, _editBtn, _removeBtn, _testBtn,
             _autoStartCheckBox, _scanOnStartupCheckBox, _verboseLoggingCheckBox,
             _periodicScanLabel, _periodicScanInterval,
-            _statusLabel, _openLogBtn, _saveBtn
+            _statusLabel, _openLogBtn, _exportBtn, _importBtn, _saveBtn
         });
 
         // Wire events
@@ -158,6 +176,8 @@ public class SettingsForm : Form
         _removeBtn.Click += (_, _) => RemoveRule();
         _testBtn.Click += (_, _) => TestRules();
         _openLogBtn.Click += (_, _) => OpenLogFile();
+        _exportBtn.Click += (_, _) => ExportRules();
+        _importBtn.Click += (_, _) => ImportRules();
         _saveBtn.Click += (_, _) => SaveConfig();
 
         ResumeLayout(true);
@@ -278,6 +298,118 @@ public class SettingsForm : Form
 
         ConfigSaved?.Invoke(_config);
         SetStatus("Settings saved.", Color.DarkGreen);
+    }
+
+    private void ExportRules()
+    {
+        if (_config.Rules.Count == 0)
+        {
+            SetStatus("No rules to export.", Color.DarkRed);
+            return;
+        }
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Export Exclusion Rules",
+            Filter = "JSON files (*.json)|*.json",
+            DefaultExt = "json",
+            FileName = "exclusion-rules.json"
+        };
+
+        if (dialog.ShowDialog() != DialogResult.OK)
+            return;
+
+        try
+        {
+            ConfigManager.ExportRules(_config.Rules, dialog.FileName);
+            SetStatus($"Exported {_config.Rules.Count} rule(s).", Color.DarkGreen);
+            Log.Info($"Exported {_config.Rules.Count} rule(s) to {dialog.FileName}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to export rules", ex);
+            SetStatus($"Export failed: {ex.Message}", Color.DarkRed);
+        }
+    }
+
+    private void ImportRules()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Import Exclusion Rules",
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            DefaultExt = "json"
+        };
+
+        if (dialog.ShowDialog() != DialogResult.OK)
+            return;
+
+        RulesExport import;
+        try
+        {
+            import = ConfigManager.ImportRules(dialog.FileName);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Failed to import rules from {dialog.FileName}: {ex.Message}");
+            MessageBox.Show(
+                $"The selected file is not a valid rules file.\n\n{ex.Message}",
+                "Import Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        if (import.Rules.Count == 0)
+        {
+            MessageBox.Show(
+                "The selected file contains no rules.",
+                "Import Rules",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"The file contains {import.Rules.Count} rule(s).\n\n" +
+            "Yes = Replace all existing rules\n" +
+            "No = Merge with existing rules (skip duplicates)",
+            "Import Rules",
+            MessageBoxButtons.YesNoCancel,
+            MessageBoxIcon.Question);
+
+        if (result == DialogResult.Cancel)
+            return;
+
+        if (result == DialogResult.Yes)
+        {
+            _config.Rules.Clear();
+            _config.Rules.AddRange(import.Rules);
+            RefreshRulesList();
+            SetStatus($"Replaced with {import.Rules.Count} imported rule(s) (not yet saved).", Color.DarkOrange);
+            Log.Info($"Imported {import.Rules.Count} rule(s) (replace mode) from {dialog.FileName}");
+        }
+        else
+        {
+            int added = 0;
+            foreach (var rule in import.Rules)
+            {
+                bool isDuplicate = _config.Rules.Any(existing =>
+                    string.Equals(existing.Pattern, rule.Pattern, StringComparison.OrdinalIgnoreCase)
+                    && existing.Type == rule.Type);
+
+                if (!isDuplicate)
+                {
+                    _config.Rules.Add(rule);
+                    added++;
+                }
+            }
+
+            RefreshRulesList();
+            int skipped = import.Rules.Count - added;
+            SetStatus($"Merged: {added} added, {skipped} duplicate(s) skipped (not yet saved).", Color.DarkOrange);
+            Log.Info($"Imported {added} rule(s), skipped {skipped} duplicate(s) (merge mode) from {dialog.FileName}");
+        }
     }
 
     private void SetStatus(string text, Color color)
