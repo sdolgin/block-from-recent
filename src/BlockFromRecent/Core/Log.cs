@@ -68,6 +68,9 @@ public static class Log
             var keep = lines.Skip(lines.Length / 2).ToArray();
             File.WriteAllLines(logPath, keep);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Log.TrimIfNeeded failed: {ex.Message}");
+        }
     }
 }
