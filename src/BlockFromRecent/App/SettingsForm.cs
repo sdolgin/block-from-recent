@@ -14,6 +14,8 @@ public class SettingsForm : Form
     private readonly CheckBox _autoStartCheckBox;
     private readonly CheckBox _scanOnStartupCheckBox;
     private readonly CheckBox _verboseLoggingCheckBox;
+    private readonly Label _periodicScanLabel;
+    private readonly NumericUpDown _periodicScanInterval;
     private readonly Button _testBtn;
     private readonly Button _saveBtn;
     private readonly Button _openLogBtn;
@@ -37,7 +39,7 @@ public class SettingsForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterScreen;
         Icon = SystemIcons.Shield;
-        ClientSize = new Size(600, 470);
+        ClientSize = new Size(600, 500);
 
         int margin = 14;
         int btnWidth = 130;
@@ -97,11 +99,28 @@ public class SettingsForm : Form
             Checked = _config.VerboseLogging
         };
 
+        // Periodic scan interval
+        _periodicScanLabel = new Label
+        {
+            Text = "Periodic scan interval (minutes, 0 = disabled):",
+            Location = new Point(margin, checkTop + 88),
+            AutoSize = true
+        };
+
+        _periodicScanInterval = new NumericUpDown
+        {
+            Minimum = 0,
+            Maximum = 1440,
+            Value = _config.PeriodicScanIntervalMinutes,
+            Location = new Point(margin + 290, checkTop + 85),
+            Size = new Size(70, 26)
+        };
+
         // Status label
         _statusLabel = new Label
         {
             Text = "",
-            Location = new Point(margin, checkTop + 90),
+            Location = new Point(margin, checkTop + 120),
             Size = new Size(listRight - margin, 24),
             ForeColor = Color.DarkGreen
         };
@@ -118,7 +137,7 @@ public class SettingsForm : Form
         _saveBtn = new Button
         {
             Text = "Save",
-            Location = new Point(btnLeft, checkTop + 80),
+            Location = new Point(btnLeft, checkTop + 110),
             Size = new Size(btnWidth, 40),
             Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold)
         };
@@ -128,6 +147,7 @@ public class SettingsForm : Form
             rulesLabel, _rulesListBox,
             _addPrefixBtn, _addGlobBtn, _editBtn, _removeBtn, _testBtn,
             _autoStartCheckBox, _scanOnStartupCheckBox, _verboseLoggingCheckBox,
+            _periodicScanLabel, _periodicScanInterval,
             _statusLabel, _openLogBtn, _saveBtn
         });
 
@@ -254,6 +274,7 @@ public class SettingsForm : Form
         _config.AutoStart = _autoStartCheckBox.Checked;
         _config.ScanOnStartup = _scanOnStartupCheckBox.Checked;
         _config.VerboseLogging = _verboseLoggingCheckBox.Checked;
+        _config.PeriodicScanIntervalMinutes = (int)_periodicScanInterval.Value;
 
         ConfigSaved?.Invoke(_config);
         SetStatus("Settings saved.", Color.DarkGreen);
@@ -343,6 +364,7 @@ public class SettingsForm : Form
             AutoStart = source.AutoStart,
             ScanOnStartup = source.ScanOnStartup,
             VerboseLogging = source.VerboseLogging,
+            PeriodicScanIntervalMinutes = source.PeriodicScanIntervalMinutes,
             Rules = source.Rules.Select(r => new ExclusionRule
             {
                 Pattern = r.Pattern,
