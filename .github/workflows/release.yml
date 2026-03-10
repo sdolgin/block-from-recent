@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Restore NuGet packages
+        run: dotnet restore
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build single-file executable
+        run: >
+          dotnet publish src/BlockFromRecent/BlockFromRecent.csproj
+          -c Release -r win-x64 --self-contained true
+          /p:PublishSingleFile=true
+          /p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Build Inno Setup installer
+        run: >
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          /DMyAppVersion=${{ steps.version.outputs.VERSION }}
+          src/BlockFromRecent/installer.iss
+
+      - name: Create GitHub Release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          "src/BlockFromRecent/bin/Release/net8.0-windows/win-x64/publish/BlockFromRecent.exe"
+          "installer/output/BlockFromRecent-Setup-${{ steps.version.outputs.VERSION }}.exe"
+          --title "${{ github.ref_name }}"
+          --generate-notes
