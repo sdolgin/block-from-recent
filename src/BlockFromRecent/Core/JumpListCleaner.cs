@@ -72,11 +72,17 @@ public static class JumpListCleaner
                             if (target != null && engine.IsExcluded(target))
                                 Interlocked.Increment(ref total);
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            Log.Debug($"JumpListCleaner.CountMatches: failed to parse stream in {Path.GetFileName(file)}: {ex.Message}");
+                        }
                     }
                 }, recursive: false);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log.Debug($"JumpListCleaner.CountMatches: failed to open {Path.GetFileName(file)}: {ex.Message}");
+            }
         }
 
         return total;
@@ -140,9 +146,9 @@ public static class JumpListCleaner
                             Log.Debug($"JumpListCleaner: marking for removal in {Path.GetFileName(filePath)}: {item.Name} -> {target}");
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Stream isn't a valid .lnk — skip
+                        Log.Debug($"JumpListCleaner.CleanFile: stream isn't a valid .lnk in {Path.GetFileName(filePath)}: {ex.Message}");
                     }
                 }
             }, recursive: false);
