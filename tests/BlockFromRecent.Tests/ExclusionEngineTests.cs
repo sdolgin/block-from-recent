@@ -144,6 +144,7 @@ public class ExclusionEngineTests
 
         var writer = Task.Run(() =>
         {
+            var spin = new SpinWait();
             while (!cts.IsCancellationRequested)
             {
                 try
@@ -152,11 +153,13 @@ public class ExclusionEngineTests
                     _engine.UpdateRules(Array.Empty<ExclusionRule>());
                 }
                 catch (Exception ex) { exceptions.Add(ex); }
+                spin.SpinOnce();
             }
         });
 
         var reader = Task.Run(() =>
         {
+            var spin = new SpinWait();
             while (!cts.IsCancellationRequested)
             {
                 try
@@ -164,6 +167,7 @@ public class ExclusionEngineTests
                     _engine.IsExcluded(@"C:\Test\file.txt");
                 }
                 catch (Exception ex) { exceptions.Add(ex); }
+                spin.SpinOnce();
             }
         });
 
