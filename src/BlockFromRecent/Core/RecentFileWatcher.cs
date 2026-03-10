@@ -25,17 +25,7 @@ public class RecentFileWatcher : IDisposable
 
         // Debounce timer — process pending files after 500ms of quiet
         _debounceTimer = new System.Timers.Timer(500) { AutoReset = false };
-        _debounceTimer.Elapsed += async (_, _) =>
-        {
-            try
-            {
-                await ProcessPendingFilesAsync();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("ProcessPendingFiles failed", ex);
-            }
-        };
+        _debounceTimer.Elapsed += OnDebounceTimerElapsed;
     }
 
     public void Start()
@@ -70,6 +60,13 @@ public class RecentFileWatcher : IDisposable
         }
     }
 
+    private void OnDebounceTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        _ = ProcessPendingFilesAsync().ContinueWith(
+            t => Log.Error("ProcessPendingFiles failed", t.Exception!.InnerException ?? t.Exception),
+            TaskContinuationOptions.OnlyOnFaulted);
+    }
+
     private async Task ProcessPendingFilesAsync()
     {
         string[] files;
@@ -79,11 +76,16 @@ public class RecentFileWatcher : IDisposable
             _pendingFiles.Clear();
         }
 
+        var handler = OnNewRecentFile;
+        if (handler == null)
+            return;
+
         foreach (var file in files)
         {
-            var handler = OnNewRecentFile;
-            if (handler != null)
-                await handler(file);
+            foreach (var d in handler.GetInvocationList())
+            {
+                await ((Func<string, Task>)d)(file);
+            }
         }
     }
 
