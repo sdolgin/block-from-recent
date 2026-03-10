@@ -1,3 +1,7 @@
+<p>
+  <img src="docs/logo.png" alt="Block From Recent — Remove Recent File Entries">
+</p>
+
 # Block From Recent
 
 A lightweight Windows system tray utility that automatically removes unwanted files from **Windows Recent Files** (`%AppData%\Microsoft\Windows\Recent`) based on user-defined exclusion rules.
