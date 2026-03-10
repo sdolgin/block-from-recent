@@ -15,6 +15,10 @@ public class ConfigManagerTests : IDisposable
 
         if (_hadExistingConfig)
             File.Copy(AppPaths.ConfigFile, _backupPath, overwrite: true);
+
+        // Clean up any leftover corrupt backup from previous tests
+        if (File.Exists(AppPaths.CorruptConfigBackupFile))
+            File.Delete(AppPaths.CorruptConfigBackupFile);
     }
 
     public void Dispose()
@@ -32,6 +36,10 @@ public class ConfigManagerTests : IDisposable
 
         if (File.Exists(_backupPath))
             File.Delete(_backupPath);
+
+        // Clean up corrupt backup created by tests
+        if (File.Exists(AppPaths.CorruptConfigBackupFile))
+            File.Delete(AppPaths.CorruptConfigBackupFile);
     }
 
     [Fact]
@@ -51,8 +59,9 @@ public class ConfigManagerTests : IDisposable
         };
 
         ConfigManager.Save(original);
-        var loaded = ConfigManager.Load();
+        var (loaded, wasCorrupted) = ConfigManager.Load();
 
+        Assert.False(wasCorrupted);
         Assert.Equal(original.AutoStart, loaded.AutoStart);
         Assert.Equal(original.ScanOnStartup, loaded.ScanOnStartup);
         Assert.Equal(original.VerboseLogging, loaded.VerboseLogging);
@@ -64,5 +73,47 @@ public class ConfigManagerTests : IDisposable
             Assert.Equal(original.Rules[i].Pattern, loaded.Rules[i].Pattern);
             Assert.Equal(original.Rules[i].Type, loaded.Rules[i].Type);
         }
+    }
+
+    [Fact]
+    public void WhenConfigFileIsCorrupted_ThenReturnsDefaultConfigAndSignalsCorruption()
+    {
+        AppPaths.EnsureCreated();
+        File.WriteAllText(AppPaths.ConfigFile, "NOT VALID JSON {{{");
+
+        var (config, wasCorrupted) = ConfigManager.Load();
+
+        Assert.True(wasCorrupted);
+        Assert.NotNull(config);
+        Assert.Empty(config.Rules);
+        Assert.False(config.AutoStart);
+        Assert.True(config.ScanOnStartup);
+        Assert.False(config.VerboseLogging);
+    }
+
+    [Fact]
+    public void WhenConfigFileIsCorrupted_ThenBackupFileIsCreated()
+    {
+        AppPaths.EnsureCreated();
+        string corruptContent = "NOT VALID JSON {{{";
+        File.WriteAllText(AppPaths.ConfigFile, corruptContent);
+
+        ConfigManager.Load();
+
+        Assert.True(File.Exists(AppPaths.CorruptConfigBackupFile));
+        Assert.Equal(corruptContent, File.ReadAllText(AppPaths.CorruptConfigBackupFile));
+    }
+
+    [Fact]
+    public void WhenConfigFileDoesNotExist_ThenReturnsDefaultConfigWithNoCorruption()
+    {
+        if (File.Exists(AppPaths.ConfigFile))
+            File.Delete(AppPaths.ConfigFile);
+
+        var (config, wasCorrupted) = ConfigManager.Load();
+
+        Assert.False(wasCorrupted);
+        Assert.NotNull(config);
+        Assert.Empty(config.Rules);
     }
 }

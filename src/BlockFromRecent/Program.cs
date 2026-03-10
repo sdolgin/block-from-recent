@@ -43,10 +43,10 @@ static class Program
 
         ApplicationConfiguration.Initialize();
 
-        var config = ConfigManager.Load();
+        var (config, wasCorrupted) = ConfigManager.Load();
         Log.Info($"Config loaded: {config.Rules.Count} rules, AutoStart={config.AutoStart}, ScanOnStartup={config.ScanOnStartup}");
 
-        Application.Run(new TrayApplicationContext(config));
+        Application.Run(new TrayApplicationContext(config, wasCorrupted));
         Log.Info("Application exiting");
     }
 }
