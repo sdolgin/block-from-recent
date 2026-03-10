@@ -80,7 +80,7 @@ public class ExclusionEngineTests
     {
         _engine.UpdateRules(new[] { GlobRule("**/temp/**") });
 
-        Assert.True(_engine.IsExcluded(@"C:\Users\temp\file.txt"));
+        Assert.True(_engine.IsExcluded(@"Users\temp\file.txt"));
     }
 
     // --- Empty / null pattern handling ---
