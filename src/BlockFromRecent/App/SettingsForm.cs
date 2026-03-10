@@ -379,7 +379,7 @@ public class SettingsForm : Form
 
                 if (!isDuplicate)
                 {
-                    _config.Rules.Add(new ExclusionRule { Pattern = rule.Pattern, Type = rule.Type });
+                    _config.Rules.Add(rule);
                     added++;
                 }
             }

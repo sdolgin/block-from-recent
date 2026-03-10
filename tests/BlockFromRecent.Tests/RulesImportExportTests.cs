@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BlockFromRecent.Config;
 
 namespace BlockFromRecent.Tests;
@@ -63,7 +64,7 @@ public class RulesImportExportTests : IDisposable
         string filePath = Path.Combine(_tempDir, "bad.json");
         File.WriteAllText(filePath, "not valid json");
 
-        Assert.ThrowsAny<Exception>(() => ConfigManager.ImportRules(filePath));
+        Assert.Throws<JsonException>(() => ConfigManager.ImportRules(filePath));
     }
 
     [Fact]
