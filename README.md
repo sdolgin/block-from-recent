@@ -4,6 +4,8 @@
 
 # Block From Recent
 
+[![CI](https://github.com/sdolgin/block-from-recent/actions/workflows/ci.yml/badge.svg)](https://github.com/sdolgin/block-from-recent/actions/workflows/ci.yml)
+
 A lightweight Windows system tray utility that automatically removes unwanted files from **Windows Recent Files** (`%AppData%\Microsoft\Windows\Recent`) based on user-defined exclusion rules.
 
 ## Features
