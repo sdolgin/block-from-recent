@@ -6,6 +6,7 @@ public class RecentFileCleaner : IDisposable
 {
     private readonly RecentFileWatcher _watcher;
     private readonly ExclusionEngine _engine;
+    private readonly System.Timers.Timer _jumpListCleanTimer;
     private System.Timers.Timer? _periodicScanTimer;
     private AppConfig _config;
 
@@ -18,6 +19,10 @@ public class RecentFileCleaner : IDisposable
         _engine.UpdateRules(config.Rules);
         _watcher = new RecentFileWatcher();
         _watcher.OnNewRecentFile += HandleNewRecentFileAsync;
+
+        // Debounce jump list cleaning — wait for a quiet period before scanning
+        _jumpListCleanTimer = new System.Timers.Timer(1000) { AutoReset = false };
+        _jumpListCleanTimer.Elapsed += (_, _) => RunDebouncedJumpListClean();
     }
 
     public void UpdateConfig(AppConfig config)
@@ -109,14 +114,35 @@ public class RecentFileCleaner : IDisposable
             bool removed = TryRemoveIfExcluded(lnkPath);
             if (removed)
             {
-                // Also clean the matching entry from jump list databases
-                // so it disappears from Explorer's Recent view
-                try { JumpListCleaner.CleanAll(_engine); }
-                catch (Exception ex) { Log.Debug($"HandleNewRecentFile: jump list cleaning failed: {ex.Message}"); }
+                // Notify Explorer immediately so the .lnk disappears from Recent
                 JumpListCleaner.NotifyShellRecentChanged();
+
+                // Schedule a debounced jump list clean — multiple removals
+                // within the timer window are batched into a single CleanAll call
+                ScheduleJumpListClean();
             }
             return removed;
         }, maxRetries: 3, delayMs: 200);
+    }
+
+    private void ScheduleJumpListClean()
+    {
+        _jumpListCleanTimer.Stop();
+        _jumpListCleanTimer.Start();
+        Log.Debug("JumpList clean scheduled (debounced)");
+    }
+
+    private void RunDebouncedJumpListClean()
+    {
+        try
+        {
+            // CleanAll calls NotifyShellRecentChanged internally when it removes entries
+            JumpListCleaner.CleanAll(_engine);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Debounced JumpList clean failed", ex);
+        }
     }
 
     private bool TryRemoveIfExcluded(string lnkPath)
@@ -172,5 +198,6 @@ public class RecentFileCleaner : IDisposable
     {
         _periodicScanTimer?.Dispose();
         _watcher.Dispose();
+        _jumpListCleanTimer.Dispose();
     }
 }
