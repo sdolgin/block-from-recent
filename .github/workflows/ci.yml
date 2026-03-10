@@ -1,19 +1,39 @@
 name: CI
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 permissions:
   contents: read
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
       - name: Restore NuGet packages
         run: dotnet restore
+
       - name: Build in Release mode
         run: dotnet build --configuration Release --no-restore
+
       - name: Run unit tests
         run: dotnet test --configuration Release --no-build
+
+      - name: Publish self-contained executable
+        run: >
+          dotnet publish src/BlockFromRecent/BlockFromRecent.csproj
+          -c Release -r win-x64 --self-contained true
+          /p:PublishSingleFile=true
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlockFromRecent-win-x64
+          path: src/BlockFromRecent/bin/Release/net8.0-windows/win-x64/publish/BlockFromRecent.exe
