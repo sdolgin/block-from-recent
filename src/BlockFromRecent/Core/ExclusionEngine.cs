@@ -5,11 +5,11 @@ namespace BlockFromRecent.Core;
 
 public class ExclusionEngine
 {
-    private List<ExclusionRule> _rules = new();
+    private volatile ExclusionRule[] _rules = [];
 
     public void UpdateRules(IEnumerable<ExclusionRule> rules)
     {
-        _rules = rules.ToList();
+        _rules = rules.ToArray();
     }
 
     /// <summary>
@@ -20,10 +20,11 @@ public class ExclusionEngine
         if (string.IsNullOrWhiteSpace(targetPath))
             return false;
 
+        var rules = _rules;
         string normalized = NormalizePath(targetPath);
-        Log.Debug($"ExclusionEngine: checking \"{normalized}\" against {_rules.Count} rule(s)");
+        Log.Debug($"ExclusionEngine: checking \"{normalized}\" against {rules.Length} rule(s)");
 
-        foreach (var rule in _rules)
+        foreach (var rule in rules)
         {
             if (string.IsNullOrWhiteSpace(rule.Pattern))
                 continue;
